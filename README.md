@@ -1,0 +1,1 @@
+# HomeAssistant_Trafiklab_Integration
