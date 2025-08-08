@@ -1,0 +1,44 @@
+name: "Validate"
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  validate:
+    runs-on: "ubuntu-latest"
+    name: Validate
+    steps:
+      - uses: "actions/checkout@v4"
+      - name: HACS validation
+        uses: "hacs/action@main"
+        with:
+          category: "integration"
+      - name: Hassfest validation
+        uses: "home-assistant/actions/hassfest@master"
+
+  tests:
+    runs-on: "ubuntu-latest"
+    name: Run tests
+    steps:
+      - name: Check out code from GitHub
+        uses: "actions/checkout@v4"
+      - name: Setup Python
+        uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.11"
+      - name: Install requirements
+        run: |
+          pip install -r requirements-dev.txt
+      - name: Run tests
+        run: |
+          pytest tests/ --cov=custom_components.trafiklab --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella

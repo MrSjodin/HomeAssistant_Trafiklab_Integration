@@ -1,0 +1,14 @@
+{
+    "domain": "trafiklab",
+    "name": "Trafiklab",
+    "codeowners": ["@MrSjodin"],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration",
+    "integration_type": "service",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/issues",
+    "requirements": ["aiohttp>=3.8.0"],
+    "version": "0.4.0",
+    "homeassistant": "2023.1.0"
+}
