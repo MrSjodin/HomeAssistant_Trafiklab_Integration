@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import SensorEntity, SensorEntityDescription, SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -15,48 +14,29 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DOMAIN,
     CONF_SENSOR_TYPE,
-    CONF_LINE_FILTER,
-    SENSOR_TYPE_DEPARTURE,
+    CONF_DIRECTION,
     SENSOR_TYPE_ARRIVAL,
-    ATTR_STOP_NAME,
-    ATTR_LINE,
-    ATTR_DESTINATION,
-    ATTR_DIRECTION,
-    ATTR_EXPECTED_TIME,
-    ATTR_REAL_TIME,
-    ATTR_TRANSPORT_MODE,
-    ATTR_DEVIATIONS,
 )
 from .coordinator import TrafikLabCoordinator
-from .translation_helper import translate_sensor_name, translate_state, translate_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
-
-def get_sensor_descriptions() -> list[SensorEntityDescription]:
-    """Get sensor descriptions with translated names."""
-    return [
-        SensorEntityDescription(
-            key="next_departure",
-            name=translate_sensor_name("next_departure"),
-            icon="mdi:bus-clock",
-        ),
-        SensorEntityDescription(
-            key="next_arrival", 
-            name=translate_sensor_name("next_arrival"),
-            icon="mdi:bus-stop",
-        ),
-        SensorEntityDescription(
-            key="departures",
-            name=translate_sensor_name("departures"),
-            icon="mdi:timetable",
-        ),
-        SensorEntityDescription(
-            key="arrivals",
-            name=translate_sensor_name("arrivals"), 
-            icon="mdi:bus-stop-covered",
-        ),
-    ]
+SENSOR_DESCRIPTIONS = [
+    SensorEntityDescription(
+        key="next_departure",
+        translation_key="next_departure",
+        icon="mdi:bus-clock",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+    ),
+    SensorEntityDescription(
+        key="next_arrival", 
+        translation_key="next_arrival",
+        icon="mdi:bus-stop",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+    ),
+]
 
 
 async def async_setup_entry(
@@ -66,25 +46,16 @@ async def async_setup_entry(
 ) -> None:
     """Set up Trafiklab sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
+    sensor_type = entry.data.get(CONF_SENSOR_TYPE, "departures")
     
-    # Determine which sensors to create based on sensor type
-    sensor_type = entry.data.get(CONF_SENSOR_TYPE, SENSOR_TYPE_DEPARTURE)
+    # Create appropriate sensor based on type
+    if sensor_type == SENSOR_TYPE_ARRIVAL:
+        description = SENSOR_DESCRIPTIONS[1]  # next_arrival
+    else:
+        description = SENSOR_DESCRIPTIONS[0]  # next_departure
     
-    entities = []
-    sensor_descriptions = get_sensor_descriptions()
-    
-    if sensor_type == SENSOR_TYPE_DEPARTURE:
-        # Create departure sensors
-        for description in sensor_descriptions:
-            if description.key in ["next_departure", "departures"]:
-                entities.append(TrafikLabSensor(coordinator, entry, description))
-    else:  # SENSOR_TYPE_ARRIVAL
-        # Create arrival sensors
-        for description in sensor_descriptions:
-            if description.key in ["next_arrival", "arrivals"]:
-                entities.append(TrafikLabSensor(coordinator, entry, description))
-    
-    async_add_entities(entities)
+    entities = [TrafikLabSensor(coordinator, entry, description)]
+    async_add_entities(entities, True)
 
 
 class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
@@ -101,7 +72,7 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
         self.entity_description = description
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_name = f"{entry.data.get(CONF_NAME)} {description.name}"
+        self._attr_has_entity_name = True
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -109,22 +80,48 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": self._entry.data.get(CONF_NAME),
-            "manufacturer": translate_device_info("manufacturer"),
-            "model": translate_device_info("model"),
+            "manufacturer": "Trafiklab",
+            "model": "Public Transport",
             "entry_type": "service",
         }
 
     @property
-    def native_value(self) -> str | None:
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
         if not self.coordinator.data:
             return None
 
-        if self.entity_description.key in ["next_departure", "next_arrival"]:
-            return self._get_next_departure_state()
-        elif self.entity_description.key in ["departures", "arrivals"]:
-            return self._get_departures_count()
+        # Get first item from API data
+        items = self._get_data_items()
+        if not items:
+            return None
 
+        # Get the next departure/arrival time
+        first_item = items[0]
+        
+        # Handle new Trafiklab Realtime API format
+        scheduled_time = first_item.get("scheduled", "")
+        realtime_time = first_item.get("realtime", "")
+        
+        # Use realtime if available, otherwise scheduled
+        departure_time = realtime_time if realtime_time else scheduled_time
+        
+        if departure_time:
+            try:
+                from datetime import datetime
+                # API returns format: "2025-04-01T14:30:00"
+                dt = datetime.fromisoformat(departure_time)
+                now = datetime.now()
+                
+                # Calculate minutes until departure/arrival
+                minutes = int((dt - now).total_seconds() / 60)
+                
+                # Return minutes (can be negative if departure has passed)
+                return minutes
+            except Exception as e:
+                _LOGGER.warning("Error calculating minutes until departure: %s", e)
+                return None
+                
         return None
 
     @property
@@ -133,106 +130,99 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
         if not self.coordinator.data:
             return {}
 
-        attrs = {
-            ATTR_STOP_NAME: self.coordinator.data.get("stop_name", ""),
-            "sensor_type": self.coordinator.sensor_type,
-            "last_updated": self.coordinator.data.get("last_updated"),
-        }
-
-        # Add line filter info if configured
-        if self.coordinator.line_filter:
-            attrs["line_filter"] = self.coordinator.line_filter
-
-        # Add configured direction filter as main "direction" attribute
-        if self.coordinator.direction:
-            attrs["direction"] = self.coordinator.direction
-        else:
-            attrs["direction"] = "2"  # Both directions when no filter is set
-
-        # Add time window info
-        attrs["time_window"] = self.coordinator.time_window
-        
-        # Add refresh interval info
-        attrs["refresh_interval"] = self.coordinator.refresh_interval
-
-        if self.entity_description.key in ["next_departure", "next_arrival"]:
-            attrs.update(self._get_next_departure_attributes())
-        elif self.entity_description.key in ["departures", "arrivals"]:
-            attrs.update(self._get_departures_attributes())
-
-        return attrs
-
-    def _get_next_departure_state(self) -> str | None:
-        """Get the state for next departure sensor."""
-        departures = self.coordinator.data.get("departures", [])
-        if not departures:
-            if self.entity_description.key == "next_departure":
-                return translate_state("no_departures")
-            else:
-                return translate_state("no_arrivals")
-
-        next_departure = departures[0]
-        display_time = next_departure.get("display_time", "")
-        
-        if display_time:
-            return display_time
-        
-        expected_time = next_departure.get("expected_time", "")
-        if expected_time:
-            return expected_time
-            
-        return translate_state("unknown")
-
-    def _get_next_departure_attributes(self) -> dict[str, Any]:
-        """Get attributes for next departure sensor."""
-        departures = self.coordinator.data.get("departures", [])
-        if not departures:
+        items = self._get_data_items()
+        if not items:
             return {}
 
-        next_departure = departures[0]
+        first_item = items[0]
+        
+        # Get the configured direction filter from the entry
+        configured_direction = self._entry.data.get(CONF_DIRECTION, "")
+        
         return {
-            ATTR_LINE: next_departure.get("line", ""),
-            ATTR_DESTINATION: next_departure.get("destination", ""),
-            "route_direction": next_departure.get("direction", ""),  # API direction for this specific departure
-            ATTR_EXPECTED_TIME: next_departure.get("expected_time", ""),
-            ATTR_REAL_TIME: next_departure.get("real_time", False),
-            ATTR_TRANSPORT_MODE: next_departure.get("transport_mode", ""),
-            ATTR_DEVIATIONS: next_departure.get("deviations", []),
-            "scheduled_time": next_departure.get("scheduled_time", ""),
+            "line": first_item.get("route", {}).get("designation", ""),
+            "destination": first_item.get("route", {}).get("direction", ""),
+            "direction": configured_direction,  # The user-configured direction filter
+            "scheduled_time": first_item.get("scheduled", ""),
+            "expected_time": first_item.get("realtime", ""),
+            "transport_mode": first_item.get("route", {}).get("transport_mode", ""),
+            "real_time": first_item.get("is_realtime", False),
+            "delay": first_item.get("delay", 0),
+            "canceled": first_item.get("canceled", False),
+            "platform": first_item.get("realtime_platform", {}).get("designation", ""),
+            "upcoming": self._build_upcoming_array(items[:10], configured_direction),  # Up to 10 items
         }
 
-    def _get_departures_count(self) -> int:
-        """Get the count of departures."""
-        departures = self.coordinator.data.get("departures", [])
-        return len(departures)
-
-    def _get_departures_attributes(self) -> dict[str, Any]:
-        """Get attributes for departures sensor."""
-        departures = self.coordinator.data.get("departures", [])
+    def _build_upcoming_array(self, items: list[dict], configured_direction: str) -> list[dict]:
+        """Build a well-structured upcoming array for automation use."""
+        from datetime import datetime
         
-        # Limit to next 10 departures to avoid too much data
-        limited_departures = departures[:10]
+        upcoming = []
         
-        # Create array of upcoming departures/arrivals
-        upcoming_items = []
-        for departure in limited_departures:
-            item = {
-                "line": departure.get("line", ""),
-                "destination": departure.get("destination", ""),
-                "route_direction": departure.get("direction", ""),  # API direction for this specific departure
-                "time": departure.get("display_time") or departure.get("expected_time", ""),
-                "scheduled_time": departure.get("scheduled_time", ""),
-                "expected_time": departure.get("expected_time", ""),
-                "transport_mode": departure.get("transport_mode", ""),
-                "real_time": departure.get("real_time", False),
-                "deviations": departure.get("deviations", [])
+        for idx, item in enumerate(items):
+            # Extract time information
+            scheduled_time = item.get("scheduled", "")
+            realtime_time = item.get("realtime", "")
+            departure_time = realtime_time if realtime_time else scheduled_time
+            
+            # Calculate minutes until departure
+            minutes_until = None
+            time_formatted = ""
+            
+            if departure_time:
+                try:
+                    dt = datetime.fromisoformat(departure_time)
+                    now = datetime.now()
+                    minutes_until = int((dt - now).total_seconds() / 60)
+                    time_formatted = dt.strftime("%H:%M")  # Format as HH:MM
+                except Exception as e:
+                    _LOGGER.debug("Error parsing time for upcoming item %d: %s", idx, e)
+            
+            # Build automation-friendly item
+            upcoming_item = {
+                "index": idx,  # Position in the list (0-based)
+                "line": item.get("route", {}).get("designation", "") or "Unknown",
+                "destination": item.get("route", {}).get("direction", "") or "Unknown",
+                "direction": configured_direction,
+                "scheduled_time": scheduled_time,
+                "expected_time": realtime_time,
+                "time_formatted": time_formatted,  # Human-readable time (HH:MM)
+                "minutes_until": minutes_until,  # Integer minutes until departure
+                "transport_mode": item.get("route", {}).get("transport_mode", "") or "Unknown",
+                "real_time": bool(item.get("is_realtime", False)),
+                "delay": int(item.get("delay", 0)),  # Ensure it's an integer
+                "delay_minutes": int(item.get("delay", 0) / 60) if item.get("delay") else 0,  # Convert seconds to minutes
+                "canceled": bool(item.get("canceled", False)),
+                "platform": item.get("realtime_platform", {}).get("designation", "") or item.get("scheduled_platform", {}).get("designation", ""),
+                "route_name": item.get("route", {}).get("name", "") or "",
+                "agency": item.get("agency", {}).get("name", "") or "",
+                "trip_id": item.get("trip", {}).get("trip_id", "") or "",
             }
-            upcoming_items.append(item)
+            
+            upcoming.append(upcoming_item)
         
-        # Determine the attribute name based on sensor type
-        if self.entity_description.key == "departures":
-            attr_name = "upcoming_departures"
-        else:  # arrivals
-            attr_name = "upcoming_arrivals"
+        return upcoming
+
+    def _get_data_items(self) -> list[dict]:
+        """Get data items from coordinator based on sensor type."""
+        data = self.coordinator.data
+        if not data:
+            _LOGGER.debug("No data from coordinator")
+            return []
+
+        _LOGGER.debug("Coordinator data keys: %s", list(data.keys()))
         
-        return {attr_name: upcoming_items}
+        # Handle Trafiklab Realtime API response structure
+        if self.entity_description.key == "next_arrival":
+            # Look for arrivals in response
+            if "arrivals" in data:
+                _LOGGER.debug("Found %d arrivals", len(data["arrivals"]))
+                return data["arrivals"]
+        else:
+            # Look for departures in response  
+            if "departures" in data:
+                _LOGGER.debug("Found %d departures", len(data["departures"]))
+                return data["departures"]
+        
+        _LOGGER.warning("No relevant data found for sensor type: %s", self.entity_description.key)
+        return []
