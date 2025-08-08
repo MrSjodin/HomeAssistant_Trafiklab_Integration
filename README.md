@@ -3,7 +3,7 @@
 [![Testing](https://img.shields.io/badge/project%20state-testing-yellow.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2023.1.0+-blue.svg)](https://github.com/home-assistant/core/releases)
-[![Integration Version](https://img.shields.io/badge/version-0.4.0-orange.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/releases)
+[![Integration Version](https://img.shields.io/badge/version-0.4.5-orange.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/releases)
 [![HACS](https://img.shields.io/badge/HACS-custom-orange.svg)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/maintainer-MrSjodin-blue.svg)](https://github.com/MrSjodin)
 [![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
@@ -83,42 +83,60 @@ The integration creates sensors based on your configuration:
 
 ### Departure Sensors (when sensor type is "Departures")
 - **Next Departure Sensor** (`sensor.[name]_next_departure`)
-  - **State**: Display time of the next departure
-  - **Attributes**: Line, destination, route_direction, expected time, real-time status, transport mode, deviations, scheduled_time
-
-- **Departures Sensor** (`sensor.[name]_departures`) 
-  - **State**: Number of upcoming departures
-  - **Attributes**: Array of upcoming departures with detailed information (upcoming_departures)
+  - **State**: Minutes until next departure (integer)
+  - **Unit**: Minutes
+  - **Device Class**: Duration
+  - **Attributes**: Detailed information about the next departure
 
 ### Arrival Sensors (when sensor type is "Arrivals")
 - **Next Arrival Sensor** (`sensor.[name]_next_arrival`)
-  - **State**: Display time of the next arrival
-  - **Attributes**: Line, destination, route_direction, expected time, real-time status, transport mode, deviations, scheduled_time
+  - **State**: Minutes until next arrival (integer)
+  - **Unit**: Minutes
+  - **Device Class**: Duration
+  - **Attributes**: Detailed information about the next arrival
 
-- **Arrivals Sensor** (`sensor.[name]_arrivals`)
-  - **State**: Number of upcoming arrivals  
-  - **Attributes**: Array of upcoming arrivals with detailed information (upcoming_arrivals)
+### Sensor Attributes
 
-### Common Attributes
-All sensors include these additional attributes:
-- `sensor_type`: Whether this tracks "departure" or "arrival"
-- `line_filter`: Configured line filter (if any)
-- `direction`: Configured direction filter (0=Direction 1, 1=Direction 2, 2=Both directions)  
-- `time_window`: Configured time window in minutes
-- `refresh_interval`: How often data is refreshed in seconds
-- `last_updated`: Timestamp of last successful data update
+All sensors include comprehensive attributes for automation use:
 
-### Upcoming Departures/Arrivals Array Structure
-Each item in the `upcoming_departures` or `upcoming_arrivals` array contains:
-- `line`: Bus/train line number
-- `destination`: Final destination name
-- `route_direction`: API direction value for this specific departure/arrival
-- `time`: Display time (formatted for readability)
-- `scheduled_time`: Original scheduled time
-- `expected_time`: Real-time expected time
-- `transport_mode`: Type of transport (bus, metro, train, etc.)
+#### Main Attributes
+- `line`: Line number/designation (e.g., "7", "42X")
+- `destination`: Where the vehicle is heading
+- `direction`: User-configured direction filter ("0", "1", or "")
+- `scheduled_time`: Original scheduled departure/arrival time (ISO format)
+- `expected_time`: Real-time expected time (ISO format) 
+- `transport_mode`: Type of transport (BUS, TRAIN, METRO, TRAM, BOAT)
 - `real_time`: Boolean indicating if real-time data is available
-- `deviations`: Array of alerts/disruptions for this departure/arrival
+- `delay`: Delay in seconds (integer)
+- `canceled`: Boolean indicating if canceled
+- `platform`: Platform or stop position
+- `upcoming`: Array of upcoming departures/arrivals (see structure below)
+
+#### Upcoming Array Structure
+
+The `upcoming` attribute contains an array of up to 10 upcoming departures/arrivals, each with:
+
+```json
+{
+  "index": 0,                           // Position in list (0-based)
+  "line": "7",                          // Line number/designation
+  "destination": "Karolinska Institutet", // Where it's going
+  "direction": "1",                     // User-configured direction filter
+  "scheduled_time": "2025-08-08T14:30:00", // Raw scheduled time
+  "expected_time": "2025-08-08T14:32:00",  // Raw real-time
+  "time_formatted": "14:32",            // Human-readable HH:MM
+  "minutes_until": 15,                  // Integer minutes until departure
+  "transport_mode": "BUS",              // Transport type
+  "real_time": true,                    // Has real-time data
+  "delay": 120,                         // Delay in seconds
+  "delay_minutes": 2,                   // Delay in minutes
+  "canceled": false,                    // Is canceled
+  "platform": "A",                     // Platform/stop position
+  "route_name": "Blå linjen",          // Route name if available
+  "agency": "SL",                       // Transport agency
+  "trip_id": "123456789"               // Unique trip identifier
+}
+```
 
 ### Configuration Examples
 
@@ -157,7 +175,14 @@ Each item in the `upcoming_departures` or `upcoming_arrivals` array contains:
 **Direction Filter Explanation:**
 - Configuration "Direction 1" → Sensor shows `direction: "0"`
 - Configuration "Direction 2" → Sensor shows `direction: "1"`  
-- Configuration "Both directions" → Sensor shows `direction: "2"`
+- Configuration "Both directions" → Sensor shows `direction: ""` (empty string)
+
+**Sensor State Format:**
+- Sensor state returns **integer minutes** until next departure/arrival
+- Positive numbers indicate future departures (e.g., `15` = 15 minutes until departure)
+- Zero indicates departure happening now
+- Negative numbers indicate past departures (useful for detecting delays)
+- `null`/`unavailable` indicates no data available
 
 ### Automation Examples
 
@@ -166,32 +191,106 @@ Each item in the `upcoming_departures` or `upcoming_arrivals` array contains:
 automation:
   - alias: "Bus departure notification"
     trigger:
-      - platform: state
+      - platform: numeric_state
         entity_id: sensor.my_stop_next_departure
-    condition:
-      - condition: template
-        value_template: "{{ trigger.to_state.state == '5 min' }}"
+        below: 6
+        above: 4
     action:
       - service: notify.mobile_app_my_phone
         data:
-          message: "Bus {{ state_attr('sensor.my_stop_next_departure', 'line') }} to {{ state_attr('sensor.my_stop_next_departure', 'destination') }} departing in 5 minutes!"
+          message: "Bus {{ state_attr('sensor.my_stop_next_departure', 'line') }} to {{ state_attr('sensor.my_stop_next_departure', 'destination') }} departing in {{ states('sensor.my_stop_next_departure') }} minutes!"
 ```
 
-#### Working with Upcoming Departures Array
+#### Check for Departures Soon
 ```yaml
 automation:
-  - alias: "Next 3 departures notification"
+  - alias: "Departures within 10 minutes"
+    trigger:
+      - platform: state
+        entity_id: sensor.my_stop_next_departure
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.my_stop_next_departure
+        below: 11
+        above: 0
+    action:
+      - service: notify.mobile_app_my_phone
+        data:
+          message: "Next departure in {{ states('sensor.my_stop_next_departure') }} minutes"
+```
+
+#### Working with Upcoming Array - Line-Specific Automation
+```yaml
+automation:
+  - alias: "Line 7 departures notification"
     trigger:
       - platform: time_pattern
-        minutes: "/5"  # Every 5 minutes
+        minutes: "/10"  # Every 10 minutes
+    condition:
+      # Check if line 7 is departing within 15 minutes
+      - condition: template
+        value_template: >
+          {{ state_attr('sensor.my_stop_next_departure', 'upcoming') 
+             | selectattr('line', 'eq', '7') 
+             | selectattr('minutes_until', '<=', 15) 
+             | list | count > 0 }}
     action:
       - service: notify.mobile_app_my_phone
         data:
           message: >
-            Next departures:
-            {% for departure in state_attr('sensor.my_stop_departures', 'upcoming_departures')[:3] %}
-            Line {{ departure.line }} to {{ departure.destination }} at {{ departure.time }}
+            Line 7 departures in next 15 minutes:
+            {% set line7_departures = state_attr('sensor.my_stop_next_departure', 'upcoming') 
+               | selectattr('line', 'eq', '7') 
+               | selectattr('minutes_until', '<=', 15) | list %}
+            {% for departure in line7_departures %}
+            {{ departure.time_formatted }} ({{ departure.minutes_until }} min){% if departure.delay_minutes > 0 %} - {{ departure.delay_minutes }}min delayed{% endif %}
             {% endfor %}
+```
+
+#### Delay Detection
+```yaml
+automation:
+  - alias: "Delayed departures notification"
+    trigger:
+      - platform: state
+        entity_id: sensor.my_stop_next_departure
+        attribute: upcoming
+    condition:
+      # Check if any upcoming departure is delayed more than 5 minutes
+      - condition: template
+        value_template: >
+          {{ state_attr('sensor.my_stop_next_departure', 'upcoming') 
+             | selectattr('delay_minutes', '>', 5) 
+             | list | count > 0 }}
+    action:
+      - service: notify.mobile_app_my_phone
+        data:
+          message: >
+            Delayed departures detected:
+            {% set delayed = state_attr('sensor.my_stop_next_departure', 'upcoming') 
+               | selectattr('delay_minutes', '>', 5) | list %}
+            {% for departure in delayed %}
+            Line {{ departure.line }} delayed {{ departure.delay_minutes }} minutes
+            {% endfor %}
+```
+
+#### Platform-Specific Information
+```yaml
+automation:
+  - alias: "Platform information"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.my_stop_next_departure
+        below: 3
+    condition:
+      - condition: template
+        value_template: "{{ state_attr('sensor.my_stop_next_departure', 'platform') != '' }}"
+    action:
+      - service: notify.mobile_app_my_phone
+        data:
+          message: >
+            Next departure from platform {{ state_attr('sensor.my_stop_next_departure', 'platform') }} 
+            in {{ states('sensor.my_stop_next_departure') }} minutes!
 ```
 
 ### Stop Lookup Service
@@ -267,17 +366,47 @@ automation:
             {% endfor %}
 ```
 
-### Lovelace Card Example
+### Lovelace Card Examples
 
+#### Basic Entity Card
 ```yaml
 type: entities
 title: Bus Departures
 entities:
   - entity: sensor.my_stop_next_departure
     name: Next Departure
-  - entity: sensor.my_stop_departures
-    name: Total Departures
+    secondary_info: >
+      Line {{ state_attr('sensor.my_stop_next_departure', 'line') }} 
+      to {{ state_attr('sensor.my_stop_next_departure', 'destination') }}
 show_header_toggle: false
+```
+
+#### Custom Card with Upcoming Departures
+```yaml
+type: markdown
+title: Upcoming Departures
+content: |
+  **Next Departure:** {{ states('sensor.my_stop_next_departure') }} minutes
+  
+  **Upcoming:**
+  {% for departure in state_attr('sensor.my_stop_next_departure', 'upcoming')[:5] %}
+  - Line **{{ departure.line }}** to {{ departure.destination }} 
+    at {{ departure.time_formatted }} ({{ departure.minutes_until }} min)
+    {% if departure.delay_minutes > 0 %}⚠️ {{ departure.delay_minutes }}min delayed{% endif %}
+  {% endfor %}
+```
+
+#### Gauge Card for Minutes Until Departure
+```yaml
+type: gauge
+entity: sensor.my_stop_next_departure
+name: Minutes Until Departure
+min: 0
+max: 30
+severity:
+  green: 10
+  yellow: 5
+  red: 0
 ```
 
 ## Operators
