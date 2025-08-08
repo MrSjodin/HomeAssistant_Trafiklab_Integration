@@ -7,25 +7,18 @@
         "data": {
           "api_key": "Din API-nyckel",
           "stop_id": "Hållplats-ID",
-          "name": "Namn på integration"
+          "name": "Namn"
         }
       },
       "sensor": {
-        "title": "Konfigurera Sensor",
+        "title": "Konfigurera sensor",
         "description": "Konfigurera sensorn för hållplats {stop_id} ({stop_name})",
         "data": {
           "sensor_type": "Sensortyp",
-          "line_filter": "Linjefilter (kommaseparerade, lämna tom för alla linjer)",
-          "direction": "Riktning (0, 1 eller 2, lämna tom för båda riktningar)",
+          "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
+          "direction": "Riktning (0, 1, eller 2, lämna tomt för båda riktningar)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
-          "refresh_interval": "Uppdateringsintervall för data (sekunder)"
-        },
-        "data_description": {
-          "sensor_type": "Välj om du vill övervaka avgångar från eller ankomster till denna hållplats",
-          "line_filter": "Filtrera på specifika linjenummer (t.ex. '1,4,7' för linje 1, 4 och 7)",
-          "direction": "Filtrera på riktning: 0 för riktning 1, 1 för riktning 2, 2 för båda riktningar",
-          "time_window": "Antal minuter framåt att söka efter avgångar/ankomster (1-1440 minuter)",
-          "refresh_interval": "Hur ofta data ska uppdateras från API:et (60-3600 sekunder). Tänk på dina API-kvotgränser - Brons: 25 anrop/min, Silver: 150 anrop/min. Standard 300 sekunder (5 minuter) rekommenderas för de flesta användare."
+          "refresh_interval": "Datauppdateringsintervall (sekunder)"
         }
       }
     },
@@ -45,45 +38,25 @@
         "departure": "Avgångar från denna hållplats",
         "arrival": "Ankomster till denna hållplats"
       }
-    },
-    "direction": {
-      "options": {
-        "": "Båda riktningar",
-        "0": "Riktning 1", 
-        "1": "Riktning 2"
-      }
     }
   },
   "entity": {
     "sensor": {
-      "title": {
-        "departures": "Avgångar",
-        "arrivals": "Ankomster"
+      "next_departure": {
+        "name": "Nästa avgång"
+      },
+      "next_arrival": {
+        "name": "Nästa ankomst"
+      },
+      "no_data": {
+        "state": "Ingen data"
+      },
+      "no_departures": {
+        "state": "Inga avgångar"
+      },
+      "no_arrivals": {
+        "state": "Inga ankomster"
       }
-    }
-  },
-  "common": {
-    "sensor_names": {
-      "next_departure": "Nästa Avgång",
-      "next_arrival": "Nästa Ankomst", 
-      "departures": "Avgångar",
-      "arrivals": "Ankomster"
-    },
-    "states": {
-      "no_departures": "Inga avgångar",
-      "no_arrivals": "Inga ankomster",
-      "unknown": "Okänd",
-      "now": "Nu",
-      "one_minute": "1 min",
-      "minutes": "{minutes} min"
-    },
-    "device": {
-      "manufacturer": "Trafiklab",
-      "model": "Kollektivtrafik"
-    },
-    "api_errors": {
-      "request_timeout": "Förfrågan tog för lång tid",
-      "request_failed": "Förfrågan misslyckades: {error}"
     }
   }
 }

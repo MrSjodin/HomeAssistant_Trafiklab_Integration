@@ -19,13 +19,6 @@
           "direction": "Direction (0, 1, or 2, leave empty for both directions)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)"
-        },
-        "data_description": {
-          "sensor_type": "Choose whether to monitor departures from or arrivals to this stop",
-          "line_filter": "Filter by specific line numbers (e.g., '1,4,7' for lines 1, 4, and 7)",
-          "direction": "Filter by direction: 0 for direction 1, 1 for direction 2, 2 for both directions",
-          "time_window": "How many minutes ahead to search for departures/arrivals (1-1440 minutes)",
-          "refresh_interval": "How often to refresh data from the API (60-3600 seconds). Consider your API quota limits - Bronze: 25 calls/min, Silver: 150 calls/min. Default 300 seconds (5 minutes) is recommended for most users."
         }
       }
     },
@@ -39,63 +32,31 @@
       "already_configured": "This sensor configuration is already configured"
     }
   },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Trafiklab Options",
-        "description": "Configure your Trafiklab integration options.",
-        "data": {
-          "scan_interval": "Update interval (seconds)",
-          "max_departures": "Maximum departures to show"
-        }
-      }
-    }
-  },
   "selector": {
     "sensor_type": {
       "options": {
         "departure": "Departures from this stop",
         "arrival": "Arrivals to this stop"
       }
-    },
-    "direction": {
-      "options": {
-        "": "Both directions",
-        "0": "Direction 1", 
-        "1": "Direction 2"
-      }
     }
   },
   "entity": {
     "sensor": {
-      "title": {
-        "departures": "Departures",
-        "arrivals": "Arrivals"
+      "next_departure": {
+        "name": "Next Departure"
+      },
+      "next_arrival": {
+        "name": "Next Arrival"
+      },
+      "no_data": {
+        "state": "No data"
+      },
+      "no_departures": {
+        "state": "No departures"
+      },
+      "no_arrivals": {
+        "state": "No arrivals"
       }
-    }
-  },
-  "common": {
-    "sensor_names": {
-      "next_departure": "Next Departure",
-      "next_arrival": "Next Arrival", 
-      "departures": "Departures",
-      "arrivals": "Arrivals"
-    },
-    "states": {
-      "no_departures": "No departures",
-      "no_arrivals": "No arrivals",
-      "unknown": "Unknown",
-      "now": "Now",
-      "one_minute": "1 min",
-      "minutes": "{minutes} min"
-    },
-    "device": {
-      "manufacturer": "Trafiklab",
-      "model": "Public Transport"
-    },
-    "api_errors": {
-      "request_timeout": "Request timed out",
-      "request_failed": "Request failed: {error}"
     }
   }
 }

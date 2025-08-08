@@ -13,7 +13,6 @@ from .const import (
     ARRIVALS_ENDPOINT,
     STOP_LOOKUP_ENDPOINT,
 )
-from .translation_helper import translate_api_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,11 +20,12 @@ _LOGGER = logging.getLogger(__name__)
 class TrafikLabApiClient:
     """API client for Trafiklab."""
 
-    def __init__(self, api_key: str, session: aiohttp.ClientSession | None = None) -> None:
+    def __init__(self, api_key: str, session: aiohttp.ClientSession | None = None, timeout: int = 15) -> None:
         """Initialize the API client."""
         self.api_key = api_key
         self._session = session
         self._close_session = False
+        self.timeout = timeout
 
     async def __aenter__(self) -> TrafikLabApiClient:
         """Async context manager entry."""
@@ -44,7 +44,8 @@ class TrafikLabApiClient:
     def session(self) -> aiohttp.ClientSession:
         """Get or create session."""
         if self._session is None:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            self._session = aiohttp.ClientSession(timeout=timeout)
             self._close_session = True
         return self._session
 
@@ -62,13 +63,13 @@ class TrafikLabApiClient:
         params = {"key": self.api_key}
 
         try:
-            async with self.session.get(url, params=params, timeout=30) as response:
+            async with self.session.get(url, params=params) as response:
                 response.raise_for_status()
                 return await response.json()
         except asyncio.TimeoutError as err:
-            raise TrafikLabApiError(translate_api_error("request_timeout")) from err
+            raise TrafikLabApiError("Request timed out") from err
         except aiohttp.ClientError as err:
-            raise TrafikLabApiError(translate_api_error("request_failed", error=str(err))) from err
+            raise TrafikLabApiError(f"Request failed: {err}") from err
 
     async def get_arrivals(
         self,
@@ -84,13 +85,13 @@ class TrafikLabApiClient:
         params = {"key": self.api_key}
 
         try:
-            async with self.session.get(url, params=params, timeout=30) as response:
+            async with self.session.get(url, params=params) as response:
                 response.raise_for_status()
                 return await response.json()
         except asyncio.TimeoutError as err:
-            raise TrafikLabApiError(translate_api_error("request_timeout")) from err
+            raise TrafikLabApiError("Request timed out") from err
         except aiohttp.ClientError as err:
-            raise TrafikLabApiError(translate_api_error("request_failed", error=str(err))) from err
+            raise TrafikLabApiError(f"Request failed: {err}") from err
 
     async def search_stops(self, search_value: str) -> dict[str, Any]:
         """Search for stops by name."""
@@ -98,13 +99,13 @@ class TrafikLabApiClient:
         params = {"key": self.api_key}
 
         try:
-            async with self.session.get(url, params=params, timeout=30) as response:
+            async with self.session.get(url, params=params) as response:
                 response.raise_for_status()
                 return await response.json()
         except asyncio.TimeoutError as err:
-            raise TrafikLabApiError(translate_api_error("request_timeout")) from err
+            raise TrafikLabApiError("Request timed out") from err
         except aiohttp.ClientError as err:
-            raise TrafikLabApiError(translate_api_error("request_failed", error=str(err))) from err
+            raise TrafikLabApiError(f"Request failed: {err}") from err
 
     async def validate_api_key(self, area_id: str = "740098000") -> bool:
         """Validate the API key by making a test request to Stockholm."""
