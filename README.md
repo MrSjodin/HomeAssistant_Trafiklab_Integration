@@ -1,5 +1,6 @@
 # Home Assistant Trafiklab Integration
 
+[![Testing](https://img.shields.io/badge/project%20state-testing-yellow.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2023.1.0+-blue.svg)](https://github.com/home-assistant/core/releases)
 [![Integration Version](https://img.shields.io/badge/version-0.4.0-orange.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/releases)
