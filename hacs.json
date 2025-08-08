@@ -1,11 +1,11 @@
 {
   "name": "Trafiklab",
   "content_in_root": false,
-  "filename": "trafiklab.zip",
   "render_readme": true,
   "domains": ["sensor"],
   "country": ["SE"],
   "homeassistant": "2023.1.0",
   "iot_class": "Cloud Polling",
-  "hacs": "1.6.0"
+  "hacs": "1.6.0",
+  "zip_release": false
 }
