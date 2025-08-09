@@ -1,6 +1,7 @@
 """Config flow for Trafiklab integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -82,30 +83,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step."""
-        errors: dict[str, str] = {}
-
         if user_input is not None:
-            try:
-                info = await validate_input(self.hass, user_input)
-                self._api_key = user_input[CONF_API_KEY]
-                self._stop_id = user_input[CONF_STOP_ID]
-                self._name = user_input.get(CONF_NAME, DEFAULT_NAME)
-                
-                # Move to sensor configuration step
-                return await self.async_step_sensor()
-                
-            except CannotConnect:
-                errors["base"] = ERROR_CONNECTION
-            except InvalidApiKey:
-                errors["api_key"] = ERROR_API_KEY_INVALID
-            except InvalidStopId:
-                errors["stop_id"] = ERROR_STOP_NOT_FOUND
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+            # Store the user input without validation
+            self._api_key = user_input[CONF_API_KEY]
+            self._stop_id = user_input[CONF_STOP_ID]
+            self._name = user_input.get(CONF_NAME, DEFAULT_NAME)
+            
+            # Move to sensor configuration step
+            return await self.async_step_sensor()
 
         return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+            step_id="user", data_schema=STEP_USER_DATA_SCHEMA
         )
 
     async def async_step_sensor(
@@ -154,49 +142,3 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "stop_name": self._name,
             }
         )
-
-
-async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input allows us to connect.
-
-    Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
-    """
-    api_key = data[CONF_API_KEY]
-    area_id = data[CONF_STOP_ID]
-
-    # Test the API connection
-    try:
-        async with aiohttp.ClientSession() as session:
-            url = f"{API_BASE_URL}{DEPARTURES_ENDPOINT}/{area_id}"
-            params = {"key": api_key}
-            
-            async with session.get(url, params=params) as response:
-                if response.status == 401:
-                    raise InvalidApiKey
-                elif response.status == 404:
-                    raise InvalidStopId
-                elif response.status != 200:
-                    raise CannotConnect
-                
-                result = await response.json()
-                # The new API doesn't use StatusCode, just check if we got valid data
-                if "stops" not in result:
-                    raise InvalidStopId
-
-    except aiohttp.ClientError as err:
-        raise CannotConnect from err
-
-    # Return info that you want to store in the config entry.
-    return {"title": data.get(CONF_NAME, DEFAULT_NAME)}
-
-
-class CannotConnect(HomeAssistantError):
-    """Error to indicate we cannot connect."""
-
-
-class InvalidApiKey(HomeAssistantError):
-    """Error to indicate there is invalid API key."""
-
-
-class InvalidStopId(HomeAssistantError):
-    """Error to indicate there is invalid stop ID."""
