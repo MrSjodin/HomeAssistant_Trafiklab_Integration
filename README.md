@@ -310,7 +310,7 @@ The service returns data directly in the Services page and also fires events for
 search_query: "Stockholm"
 total_stops: 3
 stops_found:
-  - id: "740098000"
+  - id: "740098000" # <-- This is what you'll use as Stop ID when setting up a departure or arrival sensor
     name: "Stockholm"
     area_type: "META_STOP"
     transport_modes: ["BUS", "TRAIN", "TRAM", "METRO"]
@@ -332,7 +332,7 @@ event_type: trafiklab_stop_lookup_result
 event_data:
   search_query: "Stockholm"
   stops_found:
-    - id: "740098000" # <-- This is what you'll use as Stop ID when setting up a departure or arrival sensor
+    - id: "740098000"
       name: "Stockholm"
       area_type: "META_STOP"
       transport_modes: ["BUS", "TRAIN", "TRAM", "METRO"]
