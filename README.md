@@ -14,7 +14,7 @@ The story behind is that I'd like to be able to show the upcoming departures fro
 
 For a complete list of traffic operators covered by the API and this integration, see **Operators** section below. 
 
-## Integration Features
+## API and Integration Features
 
 - **Real-time departures and arrivals**: Get live realtime departure and arrival information from any Trafiklab covered stop in Sweden
 - **Line filtering**: Monitor specific lines by filtering with comma-separated line numbers, per sensor
@@ -26,6 +26,9 @@ For a complete list of traffic operators covered by the API and this integration
 - **Config flow**: Easy setup through the Home Assistant UI with step-by-step configuration
 - **Multi-language support**: English and Swedish translations
 - **Nationwide coverage**: Covers all public transport operators in Sweden that are a part of Trafiklab API. 
+
+The integration uses the newer **Trafiklab Realtime APIs**, which currently is in a beta release. Until the API is production-ready this integration will remain in "testing" state. See [Trafiklab Realtime API webpage](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) for more information.
+
 
 ## Installation
 
@@ -70,12 +73,6 @@ For a complete list of traffic operators covered by the API and this integration
 You need to register at [Trafiklab](https://www.trafiklab.se/) to get API keys for:
 
 - **Trafiklab Realtime APIs**: For real-time departures, arrivals, and stop lookup
-
-The integration uses the new **Trafiklab Realtime APIs** which provide:
-- Better performance with higher quotas
-- More detailed data including platforms and real-time information
-- Nationwide coverage of all Swedish public transport operators - not just SL
-- CC-BY 4.0 license allowing flexible usage
 
 ## Sensors
 
