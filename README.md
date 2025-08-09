@@ -48,7 +48,7 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 
 ### Prerequisites
 
-1. Get a free API key from [Trafiklab](https://www.trafiklab.se/) - it's free but please note that there are a default API quota with the limitation of 25 calls per minute and 100.000 calls per month.
+1. Get an API key from [Trafiklab](https://www.trafiklab.se/) - it's free but please note that there are a default API quota with the limitation of 25 calls per minute and 100.000 calls per month.
 2. Find the area/stop ID for your desired stop using the Stop Lookup service (see below)
 
 ### Setup
@@ -66,13 +66,8 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 
 **Note**: The integration now uses **area IDs** from the Trafiklab Realtime API, which correspond to rikshållplatser (national stops) or meta-stops. Use the stop lookup service to find the correct area ID for your stop.
 
-**Important**: The refresh interval controls how often the integration fetches data from the Trafiklab API. Consider your API quota limits when setting this value. More frequent updates (lower values) consume more API calls.
-
-## API Keys
-
-You need to register at [Trafiklab](https://www.trafiklab.se/) to get API keys for:
-
-- **Trafiklab Realtime APIs**: For real-time departures, arrivals, and stop lookup
+#### Refresh interval considerations
+The refresh interval controls how often the integration fetches data from the Trafiklab API. Consider your API quota limits when setting this value. More frequent updates (lower values) consume more API calls. For example, if you have a departure sensor for a stop that updates every 5 minutes (300 seconds), that sensor alone will consume about 8.640 calls per month. Thus, you can have up to 11 departure or arrival sensors with 300 seconds update frequency to stay within the maximum initial quota. 
 
 ## Sensors
 
@@ -109,7 +104,7 @@ All sensors include comprehensive attributes for automation use:
 - `platform`: Platform or stop position
 - `upcoming`: Array of upcoming departures/arrivals (see structure below)
 
-#### Upcoming Array Structure
+#### Upcoming Departures/Arrivals Array Structure
 
 The `upcoming` attribute contains an array of up to 10 upcoming departures/arrivals, each with:
 
