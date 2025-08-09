@@ -64,8 +64,32 @@ class TrafikLabApiClient:
 
         try:
             async with self.session.get(url, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
+                # Don't raise for status immediately, check the response first
+                if response.status == 200:
+                    return await response.json()
+                
+                # Handle specific HTTP status codes
+                response_text = await response.text()
+                
+                if response.status == 403:
+                    # Parse JSON error if available
+                    try:
+                        error_data = await response.json()
+                        error_code = error_data.get("errorCode", "")
+                        error_detail = error_data.get("errorDetail", "")
+                        if "key" in error_code.lower() or "key" in error_detail.lower():
+                            raise TrafikLabApiError(f"Invalid API key: {error_detail}")
+                    except Exception:
+                        pass
+                    raise TrafikLabApiError(f"API key authentication failed (HTTP 403): {response_text}")
+                
+                elif response.status == 404:
+                    raise TrafikLabApiError(f"Stop ID not found (HTTP 404): {response_text}")
+                
+                else:
+                    response.raise_for_status()
+                    return await response.json()
+                    
         except asyncio.TimeoutError as err:
             raise TrafikLabApiError("Request timed out") from err
         except aiohttp.ClientError as err:
