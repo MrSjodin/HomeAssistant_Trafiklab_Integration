@@ -151,6 +151,7 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             "canceled": first_item.get("canceled", False),
             "platform": first_item.get("realtime_platform", {}).get("designation", ""),
             "upcoming": self._build_upcoming_array(items[:10], configured_direction),  # Up to 10 items
+            "attribution": "Data from Trafiklab.se",  # CC-BY license requirement
         }
 
     def _build_upcoming_array(self, items: list[dict], configured_direction: str) -> list[dict]:
@@ -211,18 +212,15 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             return []
 
         _LOGGER.debug("Coordinator data keys: %s", list(data.keys()))
-        
-        # Handle Trafiklab Realtime API response structure
+
         if self.entity_description.key == "next_arrival":
-            # Look for arrivals in response
-            if "arrivals" in data:
+            if "arrivals" in data and isinstance(data["arrivals"], list):
                 _LOGGER.debug("Found %d arrivals", len(data["arrivals"]))
                 return data["arrivals"]
         else:
-            # Look for departures in response  
-            if "departures" in data:
+            if "departures" in data and isinstance(data["departures"], list):
                 _LOGGER.debug("Found %d departures", len(data["departures"]))
                 return data["departures"]
-        
+
         _LOGGER.warning("No relevant data found for sensor type: %s", self.entity_description.key)
         return []
