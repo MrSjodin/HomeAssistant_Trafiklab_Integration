@@ -3,7 +3,7 @@
 [![Testing](https://img.shields.io/badge/project%20state-testing-yellow.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2023.1.0+-blue.svg)](https://github.com/home-assistant/core/releases)
-[![Integration Version](https://img.shields.io/badge/version-0.4.5-orange.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/releases)
+[![Integration Version](https://img.shields.io/badge/version-0.4.6-orange.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/releases)
 [![HACS](https://img.shields.io/badge/HACS-custom-orange.svg)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/maintainer-MrSjodin-blue.svg)](https://github.com/MrSjodin)
 [![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
@@ -18,7 +18,7 @@ For a complete list of traffic operators covered by the API and this integration
 
 - **Real-time departures and arrivals**: Get live realtime departure and arrival information from any Trafiklab covered stop in Sweden
 - **Line filtering**: Monitor specific lines by filtering with comma-separated line numbers, per sensor
-- **Direction filtering**: Filter by specific directions at a stop (useful for busy stops), per sensor
+- **Destination filtering**: Filter by (substring) text match of the destination at a stop (useful for busy stops), per sensor
 - **Configurable time window**: Set how many minutes ahead to search (1-1440 minutes), per sensor
 - **Multiple transport modes**: Support for buses, trains, metro, trams, and ships
 - **Flexible sensor configuration**: Create separate sensors for departures and arrivals
@@ -56,11 +56,11 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 1. Go to Settings → Devices & Services
 2. Click "Add Integration"
 3. Search for "Trafiklab"
-4. Enter your API key and area/stop ID (see instructions below on how to use the Stop Lookup service)
+4. Enter your API key and area/stop ID (see instructions below on how to use the lookup Stop ID)
 5. Configure the integration name
 6. Choose sensor type (departures or arrivals)
 7. Optionally filter by specific lines (comma-separated, e.g., "1,4,7")
-8. Optionally filter by direction (0 for direction 1, 1 for direction 2, leave empty for both)
+8. Optionally filter by destination substring (case-insensitive, leave empty for all)
 9. Set time window (how many minutes ahead to search, default 60 minutes)
 10. Configure refresh interval (how often to fetch data from API, default 300 seconds, minimum 60 seconds)
 
@@ -164,10 +164,8 @@ The `upcoming` attribute contains an array of up to 10 upcoming departures/arriv
 - Refresh Interval: 600 seconds (less frequent updates to save API quota)
 ```
 
-**Direction Filter Explanation:**
-- Configuration "Direction 1" → Sensor shows `direction: "0"`
-- Configuration "Direction 2" → Sensor shows `direction: "1"`  
-- Configuration "Both directions" → Sensor shows `direction: ""` (empty string)
+**Destination Filter Explanation:**
+You can enter any (part of) destination text (case-insensitive). Example: entering `central` will match destinations like "Stockholm Central" or "Centralstationen". Leave empty for all destinations.
 
 **Sensor State Format:**
 - Sensor state returns **integer minutes** until next departure/arrival
@@ -285,9 +283,19 @@ automation:
             in {{ states('sensor.my_stop_next_departure') }} minutes!
 ```
 
-### Stop Lookup Service
+### Stop ID Lookup Service
 
-The integration provides a service to search for stops by name:
+There are basically two ways of lookup the Stop ID. You can go directly to [Trafiklab API](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/openapi-specification/) where you can use the function to try out the Stop lookup API. Enter your API key and search string to get a response back.
+
+The other way is to use the integration provided service to search for stops by name. Please note that the service only registers in Home Assistant if either:
+1. You have at least one Trafiklab config entry; OR
+2. You add an (optional) empty YAML stub in configuration.yaml:
+
+```yaml
+trafiklab:
+```
+
+When you have entered the YAML stub and restarted Home Assistant, you can now call the service:
 
 ```yaml
 service: trafiklab.stop_lookup
@@ -298,9 +306,7 @@ data:
 
 #### Service Response
 
-The service returns data directly in the Services page and also fires events for automation use:
-
-**Direct Response (visible on Services page):**
+The service returns data directly in the Services panel:
 ```yaml
 search_query: "Stockholm"
 total_stops: 3
@@ -317,28 +323,7 @@ stops_found:
         lon: 18.054943
 ```
 
-**Events (for automations):**
-This service will fire an event `trafiklab_stop_lookup_result` with the search results, or `trafiklab_stop_lookup_error` if there's an error.
-
-#### Service Response Event Data
-
-```yaml
-event_type: trafiklab_stop_lookup_result
-event_data:
-  search_query: "Stockholm"
-  stops_found:
-    - id: "740098000"
-      name: "Stockholm"
-      area_type: "META_STOP"
-      transport_modes: ["BUS", "TRAIN", "TRAM", "METRO"]
-      average_daily_departures: 3198.92
-      child_stops:
-        - id: "1"
-          name: "Stockholm Centralstation"
-          lat: 59.331537
-          lon: 18.054943
-        # ... more child stops
-```
+Events are not currently emitted; use the direct service response.
 
 ### Automation with Stop Lookup
 
