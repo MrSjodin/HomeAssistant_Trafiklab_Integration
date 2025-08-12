@@ -16,7 +16,7 @@
         "data": {
           "sensor_type": "Sensor Type",
           "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
-          "direction": "Direction (0, 1, or 2, leave empty for both directions)",
+          "direction": "Destination Filter (substring; leave empty for all destinations)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)"
         }
@@ -56,6 +56,20 @@
       },
       "no_arrivals": {
         "state": "No arrivals"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update Trafiklab Settings",
+        "description": "Adjust filters and timing for this sensor.",
+        "data": {
+          "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
+          "direction": "Destination Filter (substring; leave empty for all destinations)",
+          "time_window": "Time Window (minutes ahead to search)",
+          "refresh_interval": "Data Refresh Interval (seconds)"
+        }
       }
     }
   }

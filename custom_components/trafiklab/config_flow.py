@@ -53,11 +53,8 @@ STEP_SENSOR_DATA_SCHEMA = vol.Schema(
             SENSOR_TYPE_ARRIVAL,
         }),
         vol.Optional(CONF_LINE_FILTER, default=""): str,
-        vol.Optional(CONF_DIRECTION, default=""): vol.In({
-            "",
-            "0",
-            "1", 
-        }),
+    # Direction is now a free text destination filter (substring match). Keep key name for backward compatibility.
+    vol.Optional(CONF_DIRECTION, default=""): str,
         vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=1440)
         ),
@@ -71,7 +68,7 @@ STEP_SENSOR_DATA_SCHEMA = vol.Schema(
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Trafiklab."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self):
         """Initialize config flow."""
@@ -104,11 +101,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             # Combine all configuration data
-            config_data = {
+            # Immutable/base data
+            base_data = {
                 CONF_API_KEY: self._api_key,
                 CONF_STOP_ID: self._stop_id,
                 CONF_NAME: self._name,
                 CONF_SENSOR_TYPE: user_input[CONF_SENSOR_TYPE],
+            }
+            # Mutable settings go to options to avoid redundancy
+            options_data = {
                 CONF_LINE_FILTER: user_input.get(CONF_LINE_FILTER, ""),
                 CONF_DIRECTION: user_input.get(CONF_DIRECTION, ""),
                 CONF_TIME_WINDOW: user_input.get(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW),
@@ -126,12 +127,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             # Create title with sensor details
-            sensor_type_name = "departures" if user_input[CONF_SENSOR_TYPE] == SENSOR_TYPE_DEPARTURE else "arrivals"
+            sensor_type_name = "Departures" if user_input[CONF_SENSOR_TYPE] == SENSOR_TYPE_DEPARTURE else "Arrivals"
             title = f"{self._name} {sensor_type_name}"
             if user_input.get(CONF_LINE_FILTER):
                 title += f" (Lines: {user_input[CONF_LINE_FILTER]})"
 
-            return self.async_create_entry(title=title, data=config_data)
+            return self.async_create_entry(title=title, data=base_data, options=options_data)
 
         return self.async_show_form(
             step_id="sensor", 
@@ -142,3 +143,38 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "stop_name": self._name,
             }
         )
+
+    @staticmethod
+    def async_get_options_flow(config_entry):  # type: ignore[override]
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle options for existing entries."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:  # noqa: D401
+        if user_input is not None:
+            # Store selected options; HA will persist them in entry.options
+            return self.async_create_entry(title="", data=user_input)
+
+        data = self.config_entry.data
+        options = self.config_entry.options
+
+        def _opt(key: str, default: Any = ""):
+            return options.get(key, data.get(key, default))
+
+        schema = vol.Schema({
+            vol.Optional(CONF_LINE_FILTER, default=_opt(CONF_LINE_FILTER, "")): str,
+            vol.Optional(CONF_DIRECTION, default=_opt(CONF_DIRECTION, "")): str,
+            vol.Optional(CONF_TIME_WINDOW, default=_opt(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW)): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=1440)
+            ),
+            vol.Optional(CONF_REFRESH_INTERVAL, default=_opt(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL)): vol.All(
+                vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
+            ),
+        })
+
+        return self.async_show_form(step_id="init", data_schema=schema)
