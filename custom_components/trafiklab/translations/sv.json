@@ -47,16 +47,7 @@
       },
       "next_arrival": {
         "name": "Nästa ankomst"
-      },
-      "no_data": {
-        "state": "Ingen data"
-      },
-      "no_departures": {
-        "state": "Inga avgångar"
-      },
-      "no_arrivals": {
-        "state": "Inga ankomster"
-      }
+  }
     }
   },
   "options": {

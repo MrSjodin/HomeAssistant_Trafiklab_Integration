@@ -47,16 +47,7 @@
       },
       "next_arrival": {
         "name": "Next Arrival"
-      },
-      "no_data": {
-        "state": "No data"
-      },
-      "no_departures": {
-        "state": "No departures"
-      },
-      "no_arrivals": {
-        "state": "No arrivals"
-      }
+  }
     }
   },
   "options": {
