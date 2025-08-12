@@ -29,8 +29,14 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.entry = entry
         self.api_client = TrafikLabApiClient(entry.data[CONF_API_KEY])
-        
-        refresh_interval = entry.data.get(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        # Track last successful update (UTC ISO8601)
+        self.last_successful_update: str | None = None
+
+        # Options override data if present
+        refresh_interval = entry.options.get(
+            CONF_REFRESH_INTERVAL,
+            entry.data.get(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        )
         
         super().__init__(
             hass,
@@ -42,6 +48,9 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict:
         """Fetch data from Trafiklab API."""
         try:
+            # Merge data + options (options override)
+            # Base immutable data lives in entry.data (api key, stop id, sensor_type, name)
+            # Mutable settings now live in options (migration safe fallback to data)
             stop_id = self.entry.data[CONF_STOP_ID]
             sensor_type = self.entry.data.get(CONF_SENSOR_TYPE, SENSOR_TYPE_DEPARTURE)
             
@@ -77,7 +86,9 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Found %d departures", len(data["departures"]))
             else:
                 _LOGGER.warning("No departure/arrival data at top level: %s", list(data.keys()))
-
+            # Mark successful update time (UTC ISO8601 without microseconds)
+            from datetime import datetime, timezone
+            self.last_successful_update = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
             return data
             
         except Exception as err:

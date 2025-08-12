@@ -16,7 +16,7 @@
         "data": {
           "sensor_type": "Sensortyp",
           "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
-          "direction": "Riktning (0, 1, eller 2, lämna tomt för båda riktningar)",
+          "direction": "Destinationsfilter (textdel; lämna tomt för alla destinationer)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)"
         }
@@ -56,6 +56,20 @@
       },
       "no_arrivals": {
         "state": "Inga ankomster"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Uppdatera Trafiklab-inställningar",
+        "description": "Justera filter och intervall för denna sensor.",
+        "data": {
+          "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
+          "direction": "Destinationsfilter (textdel; lämna tomt för alla destinationer)",
+          "time_window": "Tidsfönster (minuter framåt att söka)",
+          "refresh_interval": "Datauppdateringsintervall (sekunder)"
+        }
       }
     }
   }
