@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.trafiklab.const import (
     DOMAIN,
@@ -16,24 +17,22 @@ from custom_components.trafiklab.const import SENSOR_TYPE_DEPARTURE  # separate 
 
 
 @pytest.fixture
-def mock_config_entry(hass: HomeAssistant) -> ConfigEntry:
-    """Return a mock config entry for the integration."""
+def mock_config_entry(hass: HomeAssistant) -> ConfigEntry:  # type: ignore[override]
+    """Provide a mock config entry added to hass."""
     data = {
         CONF_API_KEY: "test_api_key",
         CONF_STOP_ID: "9001",
         CONF_SENSOR_TYPE: SENSOR_TYPE_DEPARTURE,
         "name": DEFAULT_NAME,
     }
-    entry = ConfigEntry(
-        version=2,
-        minor_version=0,
+    entry = MockConfigEntry(
         domain=DOMAIN,
-        title="Trafiklab Test",
         data=data,
-        source="user",
-        entry_id="test-entry-id",
+        title="Trafiklab Test",
+        version=2,
+        unique_id="9001_departure",
     )
-    hass.config_entries._entries.append(entry)  # type: ignore[attr-defined]
+    entry.add_to_hass(hass)
     return entry
 
 
