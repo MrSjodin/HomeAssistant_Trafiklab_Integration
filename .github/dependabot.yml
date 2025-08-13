@@ -1,8 +1,7 @@
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
-  - package-ecosystem: 'github-actions'
+    - package-ecosystem: 'github-actions'
       directory: '/'
       schedule:
           interval: 'weekly'
@@ -12,5 +11,5 @@ updates:
       schedule:
           interval: 'weekly'
       ignore:
-          # Do not update Home Assistant (min version defined in in hacs.json)
+          # Do not update Home Assistant in dependabot
           - dependency-name: 'homeassistant'
