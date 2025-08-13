@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 import pytest
-from homeassistant.const import CONF_API_KEY, CONF_STOP_ID, CONF_SENSOR_TYPE, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers import entity_registry as er
 
-from custom_components.trafiklab.const import DOMAIN, SENSOR_TYPE_DEPARTURE, DEFAULT_NAME
+from custom_components.trafiklab.const import (
+    DOMAIN,
+    CONF_API_KEY,
+    CONF_STOP_ID,
+    CONF_SENSOR_TYPE,
+    DEFAULT_NAME,
+)
+from custom_components.trafiklab.const import SENSOR_TYPE_DEPARTURE  # separate to keep grouping clear
 
 
 @pytest.fixture
@@ -17,7 +22,7 @@ def mock_config_entry(hass: HomeAssistant) -> ConfigEntry:
         CONF_API_KEY: "test_api_key",
         CONF_STOP_ID: "9001",
         CONF_SENSOR_TYPE: SENSOR_TYPE_DEPARTURE,
-        CONF_NAME: DEFAULT_NAME,
+        "name": DEFAULT_NAME,
     }
     entry = ConfigEntry(
         version=2,
@@ -30,3 +35,9 @@ def mock_config_entry(hass: HomeAssistant) -> ConfigEntry:
     )
     hass.config_entries._entries.append(entry)  # type: ignore[attr-defined]
     return entry
+
+
+@pytest.fixture(autouse=True)
+def _auto_enable_custom_integrations(enable_custom_integrations):  # noqa: D401
+    """Automatically enable loading of custom_components directory."""
+    yield
