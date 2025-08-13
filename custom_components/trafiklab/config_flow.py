@@ -13,6 +13,8 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 import aiohttp
 
+from .api import TrafikLabApiClient, TrafikLabApiError
+
 from .const import (
     DOMAIN,
     CONF_API_KEY,
@@ -80,18 +82,29 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step."""
-        if user_input is not None:
-            # Store the user input without validation
-            self._api_key = user_input[CONF_API_KEY]
-            self._stop_id = user_input[CONF_STOP_ID]
-            self._name = user_input.get(CONF_NAME, DEFAULT_NAME)
-            
-            # Move to sensor configuration step
-            return await self.async_step_sensor()
+        errors: dict[str, str] = {}
 
-        return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA
-        )
+        if user_input is not None:
+            try:
+                # Validate before moving on so tests (and users) get feedback.
+                await validate_input(self.hass, user_input)
+            except InvalidApiKey:
+                errors["api_key"] = "Invalid API key"
+            except InvalidStopId:
+                errors["stop_id"] = "Stop not found"
+            except CannotConnect:
+                errors["base"] = "Connection error"
+            except Exception as err:  # pragma: no cover - unexpected
+                _LOGGER.exception("Unexpected exception during validation: %s", err)
+                errors["base"] = "unknown"
+            else:
+                # Persist data for next step
+                self._api_key = user_input[CONF_API_KEY]
+                self._stop_id = user_input[CONF_STOP_ID]
+                self._name = user_input.get(CONF_NAME, DEFAULT_NAME)
+                return await self.async_step_sensor()
+
+        return self.async_show_form(step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors)
 
     async def async_step_sensor(
         self, user_input: dict[str, Any] | None = None
@@ -178,3 +191,47 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         })
 
         return self.async_show_form(step_id="init", data_schema=schema)
+
+
+# ---------------------------------------------------------------------------
+# Validation helpers & custom exceptions (expected by tests)
+# ---------------------------------------------------------------------------
+class CannotConnect(HomeAssistantError):
+    """Error to indicate we cannot connect."""
+
+
+class InvalidApiKey(HomeAssistantError):
+    """Error to indicate the API key is invalid."""
+
+
+class InvalidStopId(HomeAssistantError):
+    """Error to indicate the stop id is invalid."""
+
+
+async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+    """Validate the user input allows us to connect.
+
+    Returns minimal info dict. Raises custom exceptions on failure.
+    Tests patch this function, so keep signature & return shape stable.
+    """
+    api_key = data[CONF_API_KEY]
+    stop_id = data[CONF_STOP_ID]
+
+    client = TrafikLabApiClient(api_key)
+    try:
+        # Attempt a lightweight departures fetch to validate both key & stop.
+        await client.get_departures(stop_id)
+    except TrafikLabApiError as err:
+        lower = str(err).lower()
+        if "invalid api key" in lower or "authentication failed" in lower:
+            raise InvalidApiKey from err
+        if "not found" in lower or "stop id" in lower:
+            raise InvalidStopId from err
+        raise CannotConnect from err
+    except Exception as err:  # pragma: no cover - network/aio edge case
+        raise CannotConnect from err
+    finally:
+        await client.close()
+
+    # Title used by tests when patched; we mirror behavior.
+    return {"title": data.get(CONF_NAME, DEFAULT_NAME)}
