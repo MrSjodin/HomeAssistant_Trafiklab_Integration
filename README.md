@@ -12,7 +12,7 @@ The story behind is that I'd like to be able to show the upcoming departures fro
 
 For a complete list of traffic operators covered by the API and this integration, see **Operators** section below. 
 
-This integration has not been developed by, or in collaboration wit,h Trafiklab/Samtrafiken but is entirely community-developed. Trafiklab/Samtrafiken has been informed about the integration and has given the project a thumbs-up regarding the use of their API, etc. See [Trafiklab Praise page](https://support.trafiklab.se/org/trafiklabse/d/realtime-api-integrerat-i-home-assistant/) as reference.
+This integration has not been developed by, or in collaboration with, Trafiklab/Samtrafiken but is entirely community-developed. Trafiklab/Samtrafiken has been informed about the integration and has given the project a thumbs-up regarding the use of their API, etc. See [Trafiklab Praise page](https://support.trafiklab.se/org/trafiklabse/d/realtime-api-integrerat-i-home-assistant/) as reference.
 
 ## API and Integration Features
 
