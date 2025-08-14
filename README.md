@@ -2,17 +2,17 @@
 
 [![Testing](https://img.shields.io/badge/project%20state-testing-yellow.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2023.1.0+-blue.svg)](https://github.com/home-assistant/core/releases)
-[![Integration Version](https://img.shields.io/badge/version-0.4.6-orange.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/releases)
 [![HACS](https://img.shields.io/badge/HACS-custom-orange.svg)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/maintainer-MrSjodin-blue.svg)](https://github.com/MrSjodin)
 [![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 
-So, I have created a pretty simple (but hopefully quite usable) Home Assistant custom integration for Swedish public transport information by using the newer **Trafiklab Realtime API**.
+So, here's a hopefully useful Home Assistant custom integration for Swedish public transport information by using the newer **Trafiklab Realtime API**.
 
 The story behind is that I'd like to be able to show the upcoming departures from our nearest stops in the Home Assistant ecosystem, a bit outside of the city (and not in the SL area). Although HASL is a great integration, the newer versions only supports SL - therefore I saw a need to have a native integration towards the **Trafiklab Realtime API** for use in more or less the whole country.
 
 For a complete list of traffic operators covered by the API and this integration, see **Operators** section below. 
+
+This integration has not been developed by, or in collaboration wit,h Trafiklab/Samtrafiken but is entirely community-developed. Trafiklab/Samtrafiken has been informed about the integration and has given the project a thumbs-up regarding the use of their API, etc. See [Trafiklab Praise page](https://support.trafiklab.se/org/trafiklabse/d/realtime-api-integrerat-i-home-assistant/) as reference.
 
 ## API and Integration Features
 
@@ -64,7 +64,7 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 9. Set time window (how many minutes ahead to search, default 60 minutes)
 10. Configure refresh interval (how often to fetch data from API, default 300 seconds, minimum 60 seconds)
 
-**Note**: The integration now uses **area IDs** from the Trafiklab Realtime API, which correspond to rikshållplatser (national stops) or meta-stops. Use the stop lookup service to find the correct area ID for your stop.
+**Note**: The integration now uses **area IDs** from the Trafiklab Realtime API, which correspond to "rikshållplatser" (national stops) or meta-stops. Use the stop lookup service to find the correct area ID for your stop.
 
 #### Refresh interval considerations
 The refresh interval controls how often the integration fetches data from the Trafiklab API. Consider your API quota limits when setting this value. More frequent updates (lower values) consume more API calls. For example, if you have a departure sensor for a stop that updates every 5 minutes (300 seconds), that sensor alone will consume about 8.640 calls per month. Thus, you can have up to 11 departure or arrival sensors with 300 seconds update frequency to stay within the maximum initial quota. 
