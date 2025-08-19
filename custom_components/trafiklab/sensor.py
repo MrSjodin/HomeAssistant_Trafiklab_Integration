@@ -199,7 +199,9 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             return []
         merged_cfg = {**self._entry.data, **self._entry.options}
         line_filter = (merged_cfg.get(CONF_LINE_FILTER) or "").strip()
-        direction_filter = (merged_cfg.get(CONF_DIRECTION) or "").strip().lower()
+        # Direction filter now accepts comma-separated substrings; empty means no filter
+        _direction_raw = (merged_cfg.get(CONF_DIRECTION) or "")
+        direction_tokens = [t.strip().lower() for t in _direction_raw.split(",") if t.strip()]
         line_set = (
             {ln.strip() for ln in line_filter.split(",") if ln.strip()}
             if line_filter
@@ -213,10 +215,11 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             return designation in line_set
 
         def match_direction(item: dict) -> bool:
-            if not direction_filter:
+            if not direction_tokens:
                 return True
             destination = item.get("route", {}).get("direction", "")
-            return direction_filter in destination.lower()
+            dest_lower = destination.lower()
+            return any(tok in dest_lower for tok in direction_tokens)
 
         filtered = [it for it in raw_items if match_line(it) and match_direction(it)]
         _LOGGER.debug(
@@ -224,6 +227,6 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             len(raw_items),
             len(filtered),
             line_filter or "*",
-            direction_filter or "*",
+            ",".join(direction_tokens) if direction_tokens else "*",
         )
         return filtered

@@ -18,7 +18,7 @@ This integration has not been developed by, or in collaboration with, Trafiklab/
 
 - **Real-time departures and arrivals**: Get live realtime departure and arrival information from any Trafiklab covered stop in Sweden
 - **Line filtering**: Monitor specific lines by filtering with comma-separated line numbers, per sensor
-- **Destination filtering**: Filter by (substring) text match of the destination at a stop (useful for busy stops), per sensor
+- **Destination filtering**: Filter by (substring) text match of destination(s) at a stop (useful for busy stops), per sensor
 - **Configurable time window**: Set how many minutes ahead to search (1-1440 minutes), per sensor
 - **Multiple transport modes**: Support for buses, trains, metro, trams, and ships
 - **Flexible sensor configuration**: Create separate sensors for departures and arrivals
@@ -60,7 +60,7 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 5. Configure the integration name
 6. Choose sensor type (departures or arrivals)
 7. Optionally filter by specific lines (comma-separated, e.g., "1,4,7")
-8. Optionally filter by destination substring (case-insensitive, leave empty for all)
+8. Optionally filter by destination substring (comma-separated case-insensitive, e.g., "slussen,medborgarplatsen,örebro", leave empty for all)
 9. Set time window (how many minutes ahead to search, default 60 minutes)
 10. Configure refresh interval (how often to fetch data from API, default 300 seconds, minimum 60 seconds)
 
