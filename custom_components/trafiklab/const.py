@@ -14,6 +14,7 @@ CONF_TRANSPORT_MODE: Final = "transport_mode"
 CONF_SENSOR_TYPE: Final = "sensor_type"
 CONF_TIME_WINDOW: Final = "time_window"
 CONF_REFRESH_INTERVAL: Final = "refresh_interval"
+CONF_UPDATE_CONDITION: Final = "update_condition"
 
 # Sensor types
 SENSOR_TYPE_DEPARTURE: Final = "departure"
@@ -24,6 +25,7 @@ DEFAULT_SCAN_INTERVAL: Final = 300  # 5 minutes in seconds
 MINIMUM_SCAN_INTERVAL: Final = 60   # 1 minute minimum
 DEFAULT_NAME: Final = "Trafiklab"
 DEFAULT_TIME_WINDOW: Final = 60  # minutes
+DEFAULT_UPDATE_CONDITION: Final = ""  # empty means always update
 
 # API endpoints
 API_BASE_URL: Final = "https://realtime-api.trafiklab.se/v1"

@@ -18,7 +18,8 @@
           "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
           "direction": "Destination Filter (substring; leave empty for all destinations)",
           "time_window": "Time Window (minutes ahead to search)",
-          "refresh_interval": "Data Refresh Interval (seconds)"
+          "refresh_interval": "Data Refresh Interval (seconds)",
+          "update_condition": "Update Condition (template; render to 'true' to fetch)"
         }
       }
     },
@@ -59,7 +60,8 @@
           "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
           "direction": "Destination Filter (substring; leave empty for all destinations)",
           "time_window": "Time Window (minutes ahead to search)",
-          "refresh_interval": "Data Refresh Interval (seconds)"
+          "refresh_interval": "Data Refresh Interval (seconds)",
+          "update_condition": "Update Condition (template; render to 'true' to fetch)"
         }
       }
     }

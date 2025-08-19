@@ -7,6 +7,8 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.template import Template
+from homeassistant.exceptions import TemplateError
 
 from .const import (
     CONF_API_KEY,
@@ -16,6 +18,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     SENSOR_TYPE_ARRIVAL,
     SENSOR_TYPE_DEPARTURE,
+    CONF_UPDATE_CONDITION,
 )
 from .api import TrafikLabApiClient
 
@@ -48,6 +51,22 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict:
         """Fetch data from Trafiklab API."""
         try:
+            # Optional: evaluate update condition template from options
+            update_condition_tmpl = (self.entry.options.get(CONF_UPDATE_CONDITION) or "").strip()
+            if update_condition_tmpl:
+                try:
+                    rendered = Template(update_condition_tmpl, self.hass).async_render(None)
+                    if isinstance(rendered, str):
+                        cond = rendered.strip().lower() == "true"
+                    else:
+                        cond = bool(rendered)
+                    if not cond:
+                        _LOGGER.debug("Update condition evaluated to false; skipping API call")
+                        # Return the last known data (do not mark update as failed)
+                        return self.data or {}
+                except TemplateError as terr:
+                    _LOGGER.warning("Update condition template error: %s", terr)
+                    # Proceed with update to avoid stalling sensor
             # Merge data + options (options override)
             # Base immutable data lives in entry.data (api key, stop id, sensor_type, name)
             # Mutable settings now live in options (migration safe fallback to data)
