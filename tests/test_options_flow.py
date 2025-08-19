@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from homeassistant import config_entries
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.core import HomeAssistant
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -29,7 +29,7 @@ async def test_options_flow_clearing_line_filter_persists(hass: HomeAssistant) -
     entry.add_to_hass(hass)
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["type"] == config_entries.FlowResultType.FORM
+    assert result["type"] == FlowResultType.FORM
 
     # Submit with an explicit empty string to clear the filter; omit numeric fields
     result2 = await hass.config_entries.options.async_configure(
@@ -37,7 +37,7 @@ async def test_options_flow_clearing_line_filter_persists(hass: HomeAssistant) -
     )
     await hass.async_block_till_done()
 
-    assert result2["type"] == config_entries.FlowResultType.CREATE_ENTRY
+    assert result2["type"] == FlowResultType.CREATE_ENTRY
     assert entry.options.get(CONF_LINE_FILTER) == ""
     # Unchanged fields remain
     assert entry.options.get(CONF_TIME_WINDOW) == 60
@@ -57,7 +57,7 @@ async def test_options_flow_preserves_when_omitted(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["type"] == config_entries.FlowResultType.FORM
+    assert result["type"] == FlowResultType.FORM
 
     # Do not include CONF_LINE_FILTER in submission -> should keep "10"
     result2 = await hass.config_entries.options.async_configure(
@@ -65,7 +65,7 @@ async def test_options_flow_preserves_when_omitted(hass: HomeAssistant) -> None:
     )
     await hass.async_block_till_done()
 
-    assert result2["type"] == config_entries.FlowResultType.CREATE_ENTRY
+    assert result2["type"] == FlowResultType.CREATE_ENTRY
     # Line filter preserved since it was omitted
     assert entry.options.get(CONF_LINE_FILTER) == "10"
     # Direction cleared
