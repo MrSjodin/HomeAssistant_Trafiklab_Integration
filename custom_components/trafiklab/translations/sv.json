@@ -18,7 +18,8 @@
           "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
           "direction": "Destinationsfilter (textdel; lämna tomt för alla destinationer)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
-          "refresh_interval": "Datauppdateringsintervall (sekunder)"
+          "refresh_interval": "Datauppdateringsintervall (sekunder)",
+          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
         }
       }
     },
@@ -59,7 +60,8 @@
           "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
           "direction": "Destinationsfilter (textdel; lämna tomt för alla destinationer)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
-          "refresh_interval": "Datauppdateringsintervall (sekunder)"
+          "refresh_interval": "Datauppdateringsintervall (sekunder)",
+          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
         }
       }
     }

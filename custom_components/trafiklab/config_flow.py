@@ -25,6 +25,7 @@ from .const import (
     CONF_SENSOR_TYPE,
     CONF_TIME_WINDOW,
     CONF_REFRESH_INTERVAL,
+    CONF_UPDATE_CONDITION,
     DEFAULT_NAME,
     DEFAULT_TIME_WINDOW,
     DEFAULT_SCAN_INTERVAL,
@@ -63,6 +64,8 @@ STEP_SENSOR_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
             vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
         ),
+    # New: Optional Jinja template string to decide whether to perform update. When template renders to 'true' (case-insensitive), update is performed.
+    vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
     }
 )
 
@@ -127,6 +130,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_DIRECTION: user_input.get(CONF_DIRECTION, ""),
                 CONF_TIME_WINDOW: user_input.get(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW),
                 CONF_REFRESH_INTERVAL: user_input.get(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                CONF_UPDATE_CONDITION: user_input.get(CONF_UPDATE_CONDITION, ""),
             }
 
             # Create a unique ID for this sensor configuration
@@ -170,8 +174,33 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:  # noqa: D401
         if user_input is not None:
-            # Store selected options; HA will persist them in entry.options
-            return self.async_create_entry(title="", data=user_input)
+            # Persist options. Merge with existing so omitted fields are retained,
+            # while allowing explicit clearing (empty string) to be saved.
+            data = self.config_entry.data
+            prev_options = self.config_entry.options
+
+            def _existing(key: str, default: Any = "") -> Any:
+                return prev_options.get(key, data.get(key, default))
+
+            # Start with previous options so we keep values for fields that the UI may omit
+            merged_options: dict[str, Any] = dict(prev_options)
+
+            # Ensure ints have a sane baseline if never set before
+            if CONF_TIME_WINDOW not in merged_options:
+                merged_options[CONF_TIME_WINDOW] = _existing(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW)
+            if CONF_REFRESH_INTERVAL not in merged_options:
+                merged_options[CONF_REFRESH_INTERVAL] = _existing(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL)
+
+            # Always include text fields so empty string persists clearing
+            merged_options[CONF_LINE_FILTER] = user_input.get(CONF_LINE_FILTER, "")
+            merged_options[CONF_DIRECTION] = user_input.get(CONF_DIRECTION, "")
+            merged_options[CONF_UPDATE_CONDITION] = user_input.get(CONF_UPDATE_CONDITION, "")
+
+            for key in (CONF_TIME_WINDOW, CONF_REFRESH_INTERVAL):
+                if key in user_input:
+                    merged_options[key] = user_input[key]
+
+            return self.async_create_entry(title="", data=merged_options)
 
         data = self.config_entry.data
         options = self.config_entry.options
@@ -188,6 +217,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_REFRESH_INTERVAL, default=_opt(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL)): vol.All(
                 vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
             ),
+            vol.Optional(CONF_UPDATE_CONDITION, default=_opt(CONF_UPDATE_CONDITION, "")): str,
         })
 
         return self.async_show_form(step_id="init", data_schema=schema)

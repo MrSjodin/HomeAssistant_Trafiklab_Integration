@@ -63,6 +63,7 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 8. Optionally filter by destination substring (comma-separated case-insensitive, e.g., "slussen,medborgarplatsen,örebro", leave empty for all)
 9. Set time window (how many minutes ahead to search, default 60 minutes)
 10. Configure refresh interval (how often to fetch data from API, default 300 seconds, minimum 60 seconds)
+11. Optional: Update Condition (template). Enter a Jinja template that must render to the string 'true' for the integration to fetch new data. If the template renders to anything else or errors, the fetch is skipped and the previous data is kept.
 
 **Note**: The integration now uses **area IDs** from the Trafiklab Realtime API, which correspond to "rikshållplatser" (national stops) or meta-stops. Use the stop lookup service to find the correct area ID for your stop.
 
@@ -166,6 +167,25 @@ The `upcoming` attribute contains an array of up to 10 upcoming departures/arriv
 
 **Destination Filter Explanation:**
 You can enter any (part of) destination text (case-insensitive). Example: entering `central` will match destinations like "Stockholm Central" or "Centralstationen". Leave empty for all destinations.
+
+**Update Condition (Template) Explanation:**
+You can provide a Home Assistant template which controls whether the integration performs an API request on each scheduled update. The template is evaluated in Home Assistant; if it renders to the literal string `true` (case-insensitive), the update proceeds. Otherwise, the API call is skipped and the last known data remains.
+
+Examples:
+
+```
+{{ is_state('binary_sensor.workday_sensor', 'on') }}
+```
+
+```
+{% if states('sensor.people_home')|int > 0 %}true{% else %}false{% endif %}
+```
+
+```
+{% if now().hour >= 6 and now().hour <= 9 %}true{% endif %}
+```
+
+If the field is left empty, updates always occur. On template errors, the integration logs a warning and performs the update to avoid stale data.
 
 **Sensor State Format:**
 - Sensor state returns **integer minutes** until next departure/arrival
