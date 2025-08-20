@@ -34,10 +34,9 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 
 ### HACS (Recommended)
 
-1. Add this repository to HACS as a custom repository
-2. Search for "Trafiklab" in HACS
-3. Install the integration
-4. Restart Home Assistant
+1. Search for "Trafiklab" in HACS
+2. Install the integration
+3. Restart Home Assistant
 
 ### Manual Installation
 
