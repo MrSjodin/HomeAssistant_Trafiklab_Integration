@@ -1,5 +1,8 @@
 from __future__ import annotations
 # pyright: reportMissingImports=false, reportGeneralTypeIssues=false
+import pytest
+
+pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
 from unittest.mock import patch
 
