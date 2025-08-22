@@ -49,7 +49,7 @@ SENSOR_DESCRIPTIONS = [
     SensorEntityDescription(
         key="next_arrival",
         translation_key="next_arrival",
-        icon="mdi:bus-stop",
+        icon="mdi:bus-clock",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.MINUTES,
     ),
@@ -68,7 +68,7 @@ async def async_setup_entry(
         description = SensorEntityDescription(
             key="resrobot_travel",
             translation_key="resrobot_travel",
-            icon="mdi:train-car",
+            icon="mdi:train-bus",
             device_class=SensorDeviceClass.DURATION,
             native_unit_of_measurement=UnitOfTime.MINUTES,
         )
@@ -92,17 +92,18 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
         self.entity_description = description
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_has_entity_name = False
+        self._attr_has_entity_name = True
         configured_name = (self._entry.data.get(CONF_NAME) or "").strip() or "trafiklab"
         name_slug = _slugify(configured_name)
         stype = self._entry.data.get(CONF_SENSOR_TYPE, "departure")
+
         if stype == SENSOR_TYPE_ARRIVAL:
-            suggested = f"trafiklab_arrivals_{name_slug}"
+            entity_id_base = f"trafiklab_arrival_{name_slug}"
         elif stype == SENSOR_TYPE_RESROBOT:
-            suggested = f"trafiklab_travel_{name_slug}"
+            entity_id_base = f"trafiklab_travel_{name_slug}"
         else:
-            suggested = f"trafiklab_departures_{name_slug}"
-        self._attr_suggested_object_id = suggested
+            entity_id_base = f"trafiklab_departure_{name_slug}"
+        self._attr_suggested_object_id = entity_id_base
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -294,16 +295,25 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             return None
 
         # Minimal fallback mapping; prefer Product-provided labels when available
+        # Add as needed from list: https://www.trafiklab.se/api/our-apis/resrobot-v21/common/
         category_map = {
             "BLT": "Bus",
-            "BUS": "Bus",
+            "BRE": "Bus",
+            "BBL": "Bus",
+            "BAX": "Airport Express Bus",
+            "BRB": "Replacement Bus",
             "TRN": "Train",
-            "REG": "Regional Train",
-            "LDT": "Long-distance Train",
-            "TRM": "Tram",
-            "MET": "Metro",
-            "SHP": "Ferry",
-            "SHIP": "Ferry",
+            "JRE": "Train",
+            "JIC": "Train",
+            "JST": "Train",
+            "JEX": "Train",
+            "JBL": "Train",
+            "JLT": "Train",
+            "JNT": "Night Train",
+            "JAX": "Airport Express Train",
+            "SLT": "Tram",
+            "ULT": "Metro",
+            "FLT": "Ferry",
         }
 
         def translate_category(abbrev: str | None, product_obj: dict) -> str:
