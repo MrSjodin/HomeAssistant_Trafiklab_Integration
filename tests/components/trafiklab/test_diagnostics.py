@@ -34,7 +34,7 @@ async def test_diagnostics_redacts_api_key(hass: HomeAssistant) -> None:
         await hass.async_block_till_done()
 
     data = await diag.async_get_config_entry_diagnostics(hass, entry)
-    # Confirm secret is redacted by diagnostics helper (HA uses 'REDACTED')
-    assert data["config_entry"]["data"]["api_key"] == "REDACTED"
+    # Confirm secret is redacted by diagnostics helper (accept common formats)
+    assert data["config_entry"]["data"]["api_key"] in {"REDACTED", "**REDACTED**"}
     # Should include coordinator keys
     assert "coordinator" in data
