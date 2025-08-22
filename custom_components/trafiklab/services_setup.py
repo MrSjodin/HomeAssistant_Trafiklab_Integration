@@ -7,6 +7,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import TrafikLabApiClient
 from .const import (
@@ -37,7 +38,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         api_key = call.data[CONF_API_KEY]
         search_query = call.data[ATTR_SEARCH_QUERY]
 
-        async with TrafikLabApiClient(api_key) as client:
+        session = async_get_clientsession(hass)
+        async with TrafikLabApiClient(api_key, session=session) as client:
             try:
                 result = await client.search_stops(search_query)
 

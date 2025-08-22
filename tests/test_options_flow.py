@@ -13,7 +13,46 @@ from custom_components.trafiklab.const import (
     CONF_DIRECTION,
     CONF_TIME_WINDOW,
     CONF_REFRESH_INTERVAL,
+    SENSOR_TYPE_RESROBOT,
 )
+
+
+@pytest.mark.asyncio
+async def test_options_flow_resrobot_options(hass: HomeAssistant) -> None:
+    """Test options flow for Resrobot sensor type."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "api_key": "x",
+            "sensor_type": SENSOR_TYPE_RESROBOT,
+            "origin_type": "stop_id",
+            "origin": "740000001",
+            "destination_type": "coordinates",
+            "destination": "59.3293,18.0686",
+            "name": "Resrobot Test",
+        },
+        options={
+            "via": "740000002",
+            "avoid": "",
+            "max_walking_distance": 1000,
+        },
+        unique_id="resrobot_test",
+        version=2,
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == FlowResultType.FORM
+
+    # Update via and max_walking_distance
+    result2 = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"via": "740000003", "max_walking_distance": 1500}
+    )
+    await hass.async_block_till_done()
+
+    assert result2["type"] == FlowResultType.CREATE_ENTRY
+    assert entry.options.get("via") == "740000003"
+    assert entry.options.get("max_walking_distance") == 1500
 
 
 @pytest.mark.asyncio

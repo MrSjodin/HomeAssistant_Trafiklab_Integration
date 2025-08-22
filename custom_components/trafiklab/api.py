@@ -12,14 +12,73 @@ from .const import (
     DEPARTURES_ENDPOINT, 
     ARRIVALS_ENDPOINT,
     STOP_LOOKUP_ENDPOINT,
+    RESROBOT_BASE_URL,
+    RESROBOT_TRAVEL_SEARCH_ENDPOINT,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class TrafikLabApiClient:
-    """API client for Trafiklab."""
+    """API client for Trafiklab and Resrobot endpoints."""
+    async def get_resrobot_travel_search(
+        self,
+        api_key: str,
+        origin_type: str,
+        origin: str,
+        destination_type: str,
+        destination: str,
+        via: str = "",
+        avoid: str = "",
+        max_walking_distance: int = 1000,
+    ) -> dict[str, Any]:
+        """Call Resrobot Travel Search API."""
+        # Build endpoint and params
+        url = f"{RESROBOT_BASE_URL}{RESROBOT_TRAVEL_SEARCH_ENDPOINT}"
+        params = {
+            "accessId": api_key,
+            "format": "json",
+        }
+        # Origin
+        if origin_type == "stop_id":
+            params["originId"] = origin
+        else:
+            lat, lon = origin.split(",")
+            params["originCoordLat"] = lat.strip()
+            params["originCoordLong"] = lon.strip()
+        # Destination
+        if destination_type == "stop_id":
+            params["destId"] = destination
+        else:
+            lat, lon = destination.split(",")
+            params["destCoordLat"] = lat.strip()
+            params["destCoordLong"] = lon.strip()
+        # Optional
+        if via:
+            params["viaId"] = via
+        if avoid:
+            params["avoidId"] = avoid
+        # Walking distance (originWalk and destWalk)
+        # API expects: allowWalk, minDistance, maxDistance, percent
+        params["originWalk"] = f"1,0,{max_walking_distance},75"
+        params["destWalk"] = f"1,0,{max_walking_distance},75"
 
+        try:
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    return await response.json()
+                response_text = await response.text()
+                if response.status == 403:
+                    raise TrafikLabApiError(f"Invalid API key for Resrobot: {response_text}")
+                elif response.status == 404:
+                    raise TrafikLabApiError(f"Resrobot: Not found (HTTP 404): {response_text}")
+                else:
+                    response.raise_for_status()
+                    return await response.json()
+        except asyncio.TimeoutError as err:
+            raise TrafikLabApiError("Resrobot request timed out") from err
+        except aiohttp.ClientError as err:
+            raise TrafikLabApiError(f"Resrobot request failed: {err}") from err
     def __init__(self, api_key: str, session: aiohttp.ClientSession | None = None, timeout: int = 15) -> None:
         """Initialize the API client."""
         self.api_key = api_key
