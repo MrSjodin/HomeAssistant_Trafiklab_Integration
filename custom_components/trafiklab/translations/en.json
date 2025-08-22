@@ -18,15 +18,7 @@
           "refresh_interval": "Data Refresh Interval (seconds)",
           "update_condition": "Update Condition (template; render to 'true' to fetch)"
         },
-        "data_description": {
-          "sensor_type": {
-            "options": {
-              "departure": "Departures from stop",
-              "arrival": "Arrivals to stop",
-              "resrobot_travel_search": "Resrobot Travel Search"
-            }
-          }
-        }
+  "data_description": {}
       },
       "departure_arrival": {
         "title": "Configure Stop Sensor",
@@ -54,20 +46,7 @@
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)"
         },
-        "data_description": {
-          "origin_type": {
-            "options": {
-              "stop_id": "Stop ID",
-              "coordinates": "Coordinates"
-            }
-          },
-          "destination_type": {
-            "options": {
-              "stop_id": "Stop ID",
-              "coordinates": "Coordinates"
-            }
-          }
-        }
+  "data_description": {}
       },
       "sensor": {
         "title": "Configure Sensor",
@@ -93,14 +72,7 @@
           "refresh_interval": "Data Refresh Interval (seconds)",
           "update_condition": "Update Condition (template; render to 'true' to fetch)"
         },
-        "data_description": {
-          "sensor_type": {
-            "options": {
-              "departure": "Departures from stop",
-              "arrival": "Arrivals to stop"
-            }
-          }
-        }
+  "data_description": {}
       }
     },
     "error": {

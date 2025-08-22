@@ -18,15 +18,7 @@
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
           "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
         },
-        "data_description": {
-          "sensor_type": {
-            "options": {
-              "departure": "Avgångar från hållplats",
-              "arrival": "Ankomster till hållplats",
-              "resrobot_travel_search": "Resrobot Resesökning"
-            }
-          }
-        }
+  "data_description": {}
       },
       "departure_arrival": {
         "title": "Konfigurera hållplatssensor",
@@ -54,20 +46,7 @@
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)"
         },
-        "data_description": {
-          "origin_type": {
-            "options": {
-              "stop_id": "Hållplats-ID",
-              "coordinates": "Koordinater"
-            }
-          },
-          "destination_type": {
-            "options": {
-              "stop_id": "Hållplats-ID",
-              "coordinates": "Koordinater"
-            }
-          }
-        }
+  "data_description": {}
       },
       "sensor": {
         "title": "Konfigurera sensor",
@@ -93,14 +72,7 @@
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
           "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
         },
-        "data_description": {
-          "sensor_type": {
-            "options": {
-              "departure": "Avgångar från hållplats",
-              "arrival": "Ankomster till hållplats"
-            }
-          }
-        }
+  "data_description": {}
       }
     },
     "error": {
