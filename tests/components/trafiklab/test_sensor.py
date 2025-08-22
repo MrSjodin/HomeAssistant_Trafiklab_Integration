@@ -27,18 +27,16 @@ async def test_sensor_setup_and_state_departure(hass: HomeAssistant, mock_depart
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-    # Find the created sensor entity by suggested object id pattern
-    states = hass.states.async_all("sensor")
-    # Expect one sensor
-    assert any(s.entity_id.startswith("sensor.trafiklab_departures_") for s in states)
-
-    # Verify attributes structure includes upcoming and attribution
-    for s in states:
-        if s.entity_id.startswith("sensor.trafiklab_departures_"):
-            attrs = s.attributes
-            assert "upcoming" in attrs
-            assert attrs.get("integration") == DOMAIN
-            break
+    # Resolve by unique_id via entity registry
+    from homeassistant.helpers import entity_registry as er
+    ent_reg = er.async_get(hass)
+    ent = ent_reg.async_get(f"{entry.entry_id}_next_departure")
+    assert ent is not None
+    state = hass.states.get(ent.entity_id)
+    assert state is not None
+    attrs = state.attributes
+    assert "upcoming" in attrs
+    assert attrs.get("integration") == DOMAIN
 
 
 @pytest.mark.asyncio
@@ -63,12 +61,16 @@ async def test_sensor_resrobot_shows_minutes_until_and_trips(hass: HomeAssistant
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-    # Resrobot sensor entity
-    entity = next((s for s in hass.states.async_all("sensor") if s.entity_id.startswith("sensor.trafiklab_travel_")), None)
-    assert entity is not None
+    # Resrobot sensor entity by unique_id
+    from homeassistant.helpers import entity_registry as er
+    ent_reg = er.async_get(hass)
+    ent = ent_reg.async_get(f"{entry.entry_id}_resrobot_travel")
+    assert ent is not None
+    entity_state = hass.states.get(ent.entity_id)
+    assert entity_state is not None
     # native_value is minutes until next leg within time window (non-negative int or None)
-    if entity.state not in ("unknown", "unavailable"):
-        assert int(entity.state) >= 0
-    attrs = entity.attributes
+    if entity_state.state not in ("unknown", "unavailable"):
+        assert int(entity_state.state) >= 0
+    attrs = entity_state.attributes
     assert "trips" in attrs
     assert attrs.get("integration") == DOMAIN
