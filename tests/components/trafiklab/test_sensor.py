@@ -39,7 +39,7 @@ async def test_sensor_setup_and_state_departure(hass: HomeAssistant, mock_depart
     assert "upcoming" in attrs
     assert attrs.get("integration") == DOMAIN
     # Check friendly name format
-    assert state.name == "next_departure Test Stop"
+    assert state.name == "Test Stop Upcoming Departures"
 
 
 @pytest.mark.asyncio
@@ -73,7 +73,7 @@ async def test_sensor_resrobot_shows_minutes_until_and_trips(hass: HomeAssistant
     entity_state = hass.states.get(entity_id)
     assert entity_state is not None
     # Check friendly name format
-    assert entity_state.name == "resrobot_travel Travel"
+    assert entity_state.name == "Travel Travel Search"
     # native_value is minutes until next leg within time window (non-negative int or None)
     if entity_state.state not in ("unknown", "unavailable"):
         assert int(entity_state.state) >= 0
