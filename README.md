@@ -17,6 +17,7 @@ This integration has not been developed by, or in collaboration with, Trafiklab/
 ## API and Integration Features
 
 - **Real-time departures and arrivals**: Get live realtime departure and arrival information from any Trafiklab covered stop in Sweden
+- **Resrobot end-to-end travel search (new in v0.6.0)**: Trip planning between origin and destination (stop ID or coordinates)
 - **Line filtering**: Monitor specific lines by filtering with comma-separated line numbers, per sensor
 - **Destination filtering**: Filter by (substring) text match of destination(s) at a stop (useful for busy stops), per sensor
 - **Configurable time window**: Set how many minutes ahead to search (1-1440 minutes), per sensor
@@ -47,22 +48,29 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 
 ### Prerequisites
 
-1. Get an API key from [Trafiklab](https://www.trafiklab.se/) - it's free but please note that there are a default API quota with the limitation of 25 calls per minute and 100.000 calls per month.
+1. Get your API key(s) from [Trafiklab](https://www.trafiklab.se/) - it's free but please note that there are a default API quota with API call limitation.
 2. Find the area/stop ID for your desired stop using the Stop Lookup service (see below)
+
+Note about Resrobot: Trip planning uses Resrobot Travel Search which requires its own API key, requested from the same Trafiklab website where you request the Realtime API key. Make sure to activate/request both keys if you plan to use both sensor types.
 
 ### Setup
 
-1. Go to Settings → Devices & Services
-2. Click "Add Integration"
-3. Search for "Trafiklab"
-4. Enter your API key and area/stop ID (see instructions below on how to use the lookup Stop ID)
-5. Configure the integration name
-6. Choose sensor type (departures or arrivals)
-7. Optionally filter by specific lines (comma-separated, e.g., "1,4,7")
-8. Optionally filter by destination substring (comma-separated case-insensitive, e.g., "slussen,medborgarplatsen,örebro", leave empty for all)
-9. Set time window (how many minutes ahead to search, default 60 minutes)
-10. Configure refresh interval (how often to fetch data from API, default 300 seconds, minimum 60 seconds)
-11. Optional: Update Condition (template). Enter a Jinja template that must render to the string 'true' for the integration to fetch new data. If the template renders to anything else or errors, the fetch is skipped and the previous data is kept.
+1. Go to Settings → Devices & Services → Add Integration → search for "Trafiklab".
+2. Enter your Trafiklab API key and choose a sensor type:
+   - Departures or Arrivals (Realtime)
+   - Travel Search (end-to-end trip planning)
+3. Enter a name (optional).
+4. Fill in the fields for the chosen sensor type:
+   - Departures/Arrivals:
+     - Area/Stop ID (use the Stop Lookup service if needed)
+     - Optional line filter and destination filter
+     - Time window and refresh interval
+     - Optional Update Condition (template)
+   - Travel Search:
+     - Origin and Destination: each can be a Stop ID or coordinates "lat,lon" (select type for each)
+     - Optional via/avoid Stop IDs and maximum walking distance
+     - Time window and refresh interval
+5. Finish to create the sensor.
 
 **Note**: The integration now uses **area IDs** from the Trafiklab Realtime API, which correspond to "rikshållplatser" (national stops) or meta-stops. Use the stop lookup service to find the correct area ID for your stop.
 
@@ -86,6 +94,14 @@ The integration creates sensors based on your configuration:
   - **Unit**: Minutes
   - **Device Class**: Duration
   - **Attributes**: Detailed information about the next arrival
+
+### Resrobot Travel Search Sensors (new)
+- **Travel Search Sensor** (`sensor.[name]_resrobot_travel`)
+  - **State**: Minutes until the first upcoming leg within the configured time window
+  - **Unit**: Minutes
+  - **Device Class**: Duration
+  - **Attributes**: Normalized list of trips and legs (origin/destination times, product, category, duration, etc.)
+
 
 ### Sensor Attributes
 
@@ -472,6 +488,7 @@ This integration uses the following Trafiklab APIs and endpoints:
 - [Trafiklab Realtime APIs](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/)
 - [Trafiklab Timetables](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/timetables/) (for departures and arrivals)
 - [Trafiklab Stop Lookup](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/stop-lookup/) (for finding stops)
+- [Resrobot Travel Search](https://www.trafiklab.se/api/our-apis/resrobot-v21/) (via Trafiklab) for trip planning between origin and destination (separate API key)
 
 
 ## License
@@ -488,8 +505,6 @@ This project is licensed under the Creative Commons Attribution-NonCommercial 4.
 
 Developing isn't my day job - I'm taking care of this integration solely on my free time. This means that I most probably won't try the integration out in pre-releases of Home Assistant updates. Thus, it might break in the .0 versions of Home Assistant releases before I'm able to take care of it. Feel free to contribute though!
 
-- Todo: Add support for the Trafiklab Route Planner
-- Todo: Add functionality to only update integration sensors if "something" is true, by using a template sensor for example
 - [Feature Request (mark as "FR")](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/issues)
 - [Report Issues](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/issues)
 - [Trafiklab API Documentation](https://www.trafiklab.se/api/)
