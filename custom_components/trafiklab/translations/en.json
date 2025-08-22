@@ -100,13 +100,13 @@
   "entity": {
     "sensor": {
       "next_departure": {
-        "name": "Next Departure"
+        "name": "Upcoming Departures"
       },
       "next_arrival": {
-        "name": "Next Arrival"
+        "name": "Upcoming Arrivals"
       },
       "resrobot_travel": {
-        "name": "Resrobot Travel Search"
+        "name": "Travel Search"
       }
     }
   },
