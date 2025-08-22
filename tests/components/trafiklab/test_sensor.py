@@ -30,9 +30,10 @@ async def test_sensor_setup_and_state_departure(hass: HomeAssistant, mock_depart
     # Resolve by unique_id via entity registry
     from homeassistant.helpers import entity_registry as er
     ent_reg = er.async_get(hass)
-    ent = ent_reg.async_get(f"{entry.entry_id}_next_departure")
-    assert ent is not None
-    state = hass.states.get(ent.entity_id)
+    unique_id = f"{entry.entry_id}_next_departure"
+    entity_id = ent_reg.async_get_entity_id("sensor", "trafiklab", unique_id)
+    assert entity_id is not None
+    state = hass.states.get(entity_id)
     assert state is not None
     attrs = state.attributes
     assert "upcoming" in attrs
@@ -64,9 +65,10 @@ async def test_sensor_resrobot_shows_minutes_until_and_trips(hass: HomeAssistant
     # Resrobot sensor entity by unique_id
     from homeassistant.helpers import entity_registry as er
     ent_reg = er.async_get(hass)
-    ent = ent_reg.async_get(f"{entry.entry_id}_resrobot_travel")
-    assert ent is not None
-    entity_state = hass.states.get(ent.entity_id)
+    unique_id = f"{entry.entry_id}_resrobot_travel"
+    entity_id = ent_reg.async_get_entity_id("sensor", "trafiklab", unique_id)
+    assert entity_id is not None
+    entity_state = hass.states.get(entity_id)
     assert entity_state is not None
     # native_value is minutes until next leg within time window (non-negative int or None)
     if entity_state.state not in ("unknown", "unavailable"):
