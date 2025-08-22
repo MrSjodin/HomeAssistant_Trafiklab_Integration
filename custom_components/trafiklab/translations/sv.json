@@ -7,26 +7,79 @@
         "data": {
           "api_key": "Din API-nyckel",
           "stop_id": "Hållplats-ID",
-          "name": "Namn"
+          "site_id": "Plats-ID",
+          "line_number": "Linjenummer",
+          "transport_mode": "Transportmedel",
+          "name": "Namn",
+          "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
+          "direction": "Riktning (destinationsfilter)",
+          "sensor_type": "Sensortyp",
+          "time_window": "Tidsfönster (minuter framåt att söka)",
+          "refresh_interval": "Datauppdateringsintervall (sekunder)",
+          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
+        },
+  "data_description": {}
+      },
+      "departure_arrival": {
+        "title": "Konfigurera hållplatssensor",
+        "description": "Välj filter och uppdateringsinställningar för denna sensor.",
+        "data": {
+          "stop_id": "Hållplats-ID",
+          "line_filter": "Linjefilter (kommaseparerade; tomt för alla linjer)",
+          "direction": "Destinationsfilter (textdel; tomt för alla destinationer)",
+          "time_window": "Tidsfönster (minuter framåt att söka)",
+          "refresh_interval": "Datauppdateringsintervall (sekunder)",
+          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
         }
+      },
+      "resrobot": {
+        "title": "Resrobot Resesökning",
+        "description": "Konfigurera ursprung och destination för Resrobot-resor.",
+        "data": {
+          "origin_type": "Ursprungstyp",
+          "origin": "Ursprung",
+          "destination_type": "Destinationstyp",
+          "destination": "Destination",
+          "via": "Via",
+          "avoid": "Undvik",
+          "max_walking_distance": "Maximalt gångavstånd (meter)",
+          "time_window": "Tidsfönster (minuter framåt att söka)",
+          "refresh_interval": "Datauppdateringsintervall (sekunder)"
+        },
+  "data_description": {}
       },
       "sensor": {
         "title": "Konfigurera sensor",
         "description": "Konfigurera sensorn för hållplats {stop_id} ({stop_name})",
         "data": {
           "sensor_type": "Sensortyp",
+          "resrobot_travel_search": "Resrobot Resesökning",
+          "origin_type": "Ursprungstyp",
+          "destination_type": "Destinationstyp",
+          "stop_id": "Hållplats-ID",
+          "site_id": "Plats-ID",
+          "line_number": "Linjenummer",
+          "transport_mode": "Transportmedel",
+          "coordinates": "Koordinater",
+          "origin": "Ursprung",
+          "destination": "Destination",
+          "via": "Via",
+          "avoid": "Undvik",
+          "max_walking_distance": "Maximalt gångavstånd (meter)",
           "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
           "direction": "Destinationsfilter (textdel; lämna tomt för alla destinationer)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
           "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
-        }
+        },
+  "data_description": {}
       }
     },
     "error": {
       "cannot_connect": "Kunde inte ansluta till Trafiklab API",
       "invalid_api_key": "Ogiltig API-nyckel",
       "invalid_stop_id": "Ogiltigt hållplats-ID",
+      "invalid_coordinates": "Ogiltigt koordinatformat (lat,lon)",
       "unknown": "Oväntat fel uppstod"
     },
     "abort": {
@@ -36,19 +89,25 @@
   "selector": {
     "sensor_type": {
       "options": {
-        "departure": "Avgångar från denna hållplats",
-        "arrival": "Ankomster till denna hållplats"
+        "departure": "Avgångar från hållplats",
+        "arrival": "Ankomster till hållplats",
+        "resrobot_travel_search": "Resrobot Resesökning",
+        "stop_id": "Hållplats-ID",
+        "coordinates": "Koordinater"
       }
     }
   },
   "entity": {
     "sensor": {
       "next_departure": {
-        "name": "Nästa avgång"
+        "name": "Kommande Avgångar"
       },
       "next_arrival": {
-        "name": "Nästa ankomst"
-  }
+        "name": "Kommande Ankomster"
+      },
+      "resrobot_travel": {
+        "name": "Resesökning"
+      }
     }
   },
   "options": {

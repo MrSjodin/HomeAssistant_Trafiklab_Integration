@@ -7,48 +7,107 @@
         "data": {
           "api_key": "Your API Key",
           "stop_id": "Stop ID",
-          "name": "Name"
+          "site_id": "Site ID",
+          "line_number": "Line Number",
+          "transport_mode": "Transport Mode",
+          "name": "Name",
+          "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
+          "direction": "Direction (destination filter)",
+          "sensor_type": "Sensor Type",
+          "time_window": "Time Window (minutes ahead to search)",
+          "refresh_interval": "Data Refresh Interval (seconds)",
+          "update_condition": "Update Condition (template; render to 'true' to fetch)"
+        },
+  "data_description": {}
+      },
+      "departure_arrival": {
+        "title": "Configure Stop Sensor",
+        "description": "Choose filters and update settings for this stop sensor.",
+        "data": {
+          "stop_id": "Stop ID",
+          "line_filter": "Line Filter (comma-separated; empty for all lines)",
+          "direction": "Destination Filter (substring; empty for all destinations)",
+          "time_window": "Time Window (minutes ahead to search)",
+          "refresh_interval": "Data Refresh Interval (seconds)",
+          "update_condition": "Update Condition (template; render to 'true' to fetch)"
         }
+      },
+      "resrobot": {
+        "title": "Resrobot Travel Search",
+        "description": "Configure origin and destination for Resrobot trips.",
+        "data": {
+          "origin_type": "Origin Type",
+          "origin": "Origin",
+          "destination_type": "Destination Type",
+          "destination": "Destination",
+          "via": "Via",
+          "avoid": "Avoid",
+          "max_walking_distance": "Maximum Walking Distance (meters)",
+          "time_window": "Time Window (minutes ahead to search)",
+          "refresh_interval": "Data Refresh Interval (seconds)"
+        },
+  "data_description": {}
       },
       "sensor": {
         "title": "Configure Sensor",
         "description": "Configure the sensor for stop {stop_id} ({stop_name})",
         "data": {
           "sensor_type": "Sensor Type",
+          "resrobot_travel_search": "Resrobot Travel Search",
+          "origin_type": "Origin Type",
+          "destination_type": "Destination Type",
+          "stop_id": "Stop ID",
+          "site_id": "Site ID",
+          "line_number": "Line Number",
+          "transport_mode": "Transport Mode",
+          "coordinates": "Coordinates",
+          "origin": "Origin",
+          "destination": "Destination",
+          "via": "Via",
+          "avoid": "Avoid",
+          "max_walking_distance": "Maximum Walking Distance (meters)",
           "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
           "direction": "Destination Filter (substring; leave empty for all destinations)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
           "update_condition": "Update Condition (template; render to 'true' to fetch)"
-        }
+        },
+  "data_description": {}
       }
     },
     "error": {
       "cannot_connect": "Failed to connect to Trafiklab API",
-      "invalid_api_key": "Invalid API key",
-      "invalid_stop_id": "Invalid stop ID",
+  "invalid_api_key": "Invalid API key",
+  "invalid_stop_id": "Invalid stop ID",
+  "invalid_coordinates": "Invalid coordinates format (lat,lon)",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
       "already_configured": "This sensor configuration is already configured"
     }
   },
-  "selector": {
-    "sensor_type": {
-      "options": {
-        "departure": "Departures from this stop",
-        "arrival": "Arrivals to this stop"
+    "selector": {
+      "sensor_type": {
+        "options": {
+          "departure": "Departures from stop",
+          "arrival": "Arrivals to stop",
+          "resrobot_travel_search": "Resrobot Travel Search",
+          "stop_id": "Stop ID",
+          "coordinates": "Coordinates"
+        }
       }
-    }
-  },
+    },
   "entity": {
     "sensor": {
       "next_departure": {
-        "name": "Next Departure"
+        "name": "Upcoming Departures"
       },
       "next_arrival": {
-        "name": "Next Arrival"
-  }
+        "name": "Upcoming Arrivals"
+      },
+      "resrobot_travel": {
+        "name": "Travel Search"
+      }
     }
   },
   "options": {

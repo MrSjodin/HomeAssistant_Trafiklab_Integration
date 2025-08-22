@@ -15,10 +15,21 @@ CONF_SENSOR_TYPE: Final = "sensor_type"
 CONF_TIME_WINDOW: Final = "time_window"
 CONF_REFRESH_INTERVAL: Final = "refresh_interval"
 CONF_UPDATE_CONDITION: Final = "update_condition"
+CONF_NAME: Final = "name"
+# Resrobot-specific config keys
+CONF_ORIGIN_TYPE: Final = "origin_type"
+CONF_ORIGIN: Final = "origin"
+CONF_DESTINATION_TYPE: Final = "destination_type"
+CONF_DESTINATION: Final = "destination"
+CONF_VIA: Final = "via"
+CONF_AVOID: Final = "avoid"
+CONF_MAX_WALKING_DISTANCE: Final = "max_walking_distance"
+
 
 # Sensor types
 SENSOR_TYPE_DEPARTURE: Final = "departure"
 SENSOR_TYPE_ARRIVAL: Final = "arrival"
+SENSOR_TYPE_RESROBOT: Final = "resrobot_travel_search"
 
 # Default values
 DEFAULT_SCAN_INTERVAL: Final = 300  # 5 minutes in seconds
@@ -27,11 +38,16 @@ DEFAULT_NAME: Final = "Trafiklab"
 DEFAULT_TIME_WINDOW: Final = 60  # minutes
 DEFAULT_UPDATE_CONDITION: Final = ""  # empty means always update
 
+
 # API endpoints
 API_BASE_URL: Final = "https://realtime-api.trafiklab.se/v1"
 DEPARTURES_ENDPOINT: Final = "/departures"
 ARRIVALS_ENDPOINT: Final = "/arrivals"
 STOP_LOOKUP_ENDPOINT: Final = "/stops/name"
+
+# Resrobot API
+RESROBOT_BASE_URL: Final = "https://api.resrobot.se/v2.1"
+RESROBOT_TRAVEL_SEARCH_ENDPOINT: Final = "/trip"
 
 # Transport modes
 TRANSPORT_MODES = {
@@ -51,13 +67,6 @@ ATTR_STOPS_FOUND: Final = "stops_found"
 
 # Attributes
 ATTR_STOP_NAME: Final = "stop_name"
-ATTR_LINE: Final = "line"
-ATTR_DESTINATION: Final = "destination"
-ATTR_DIRECTION: Final = "direction"
-ATTR_EXPECTED_TIME: Final = "expected_time"
-ATTR_REAL_TIME: Final = "real_time"
-ATTR_TRANSPORT_MODE: Final = "transport_mode"
-ATTR_DEVIATIONS: Final = "deviations"
 ATTR_LINE: Final = "line"
 ATTR_DESTINATION: Final = "destination"
 ATTR_DIRECTION: Final = "direction"

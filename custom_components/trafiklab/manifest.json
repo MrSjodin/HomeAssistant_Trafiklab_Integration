@@ -8,6 +8,6 @@
     "integration_type": "service",
     "iot_class": "cloud_polling",
     "issue_tracker": "https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/issues",
-    "requirements": ["aiohttp>=3.8.0"],
-    "version": "0.5.0b0"
+    "requirements": [],
+    "version": "0.6.0b0"
 }

@@ -1,4 +1,10 @@
-"""Diagnostics support for Trafiklab integration."""
+"""Diagnostics support for Trafiklab integration.
+
+Follows Home Assistant diagnostics guidelines:
+- Redact secrets (API keys) using async_redact_data
+- Avoid including large/raw payloads; provide shapes/keys instead
+- Include integration and HA version metadata
+"""
 from __future__ import annotations
 
 import asyncio
@@ -7,6 +13,8 @@ from typing import Any
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.const import __version__ as HA_VERSION
+from homeassistant.loader import async_get_integration
 
 from .api import TrafikLabApiClient, TrafikLabApiError
 from .const import CONF_API_KEY, CONF_STOP_ID, DOMAIN
@@ -24,11 +32,18 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
+
+    # Resolve integration metadata (version from manifest)
+    try:
+        integration = await async_get_integration(hass, DOMAIN)
+        integration_version = integration.version
+    except Exception:  # pragma: no cover - fallback safety
+        integration_version = None
     
     # Basic integration info
     diagnostics_data = {
-        "integration_version": "0.4.5",
-        "home_assistant_version": hass.version,
+    "integration_version": integration_version,
+    "home_assistant_version": HA_VERSION,
         "config_entry": {
             "title": entry.title,
             "domain": entry.domain,

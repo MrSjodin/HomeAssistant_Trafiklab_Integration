@@ -17,6 +17,7 @@ This integration has not been developed by, or in collaboration with, Trafiklab/
 ## API and Integration Features
 
 - **Real-time departures and arrivals**: Get live realtime departure and arrival information from any Trafiklab covered stop in Sweden
+- **Resrobot end-to-end travel search (new in v0.6.0)**: Trip planning between origin and destination (stop ID or coordinates)
 - **Line filtering**: Monitor specific lines by filtering with comma-separated line numbers, per sensor
 - **Destination filtering**: Filter by (substring) text match of destination(s) at a stop (useful for busy stops), per sensor
 - **Configurable time window**: Set how many minutes ahead to search (1-1440 minutes), per sensor
@@ -27,7 +28,7 @@ This integration has not been developed by, or in collaboration with, Trafiklab/
 - **Multi-language support**: English and Swedish translations
 - **Nationwide coverage**: Covers all public transport operators in Sweden that are a part of Trafiklab API. 
 
-The integration uses the newer **Trafiklab Realtime APIs**, which currently is in a beta release. Until the API is production-ready this integration will remain in "testing" state. See [Trafiklab Realtime API webpage](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) for more information.
+The integration uses the newer **Trafiklab Realtime APIs**, which currently is in a beta release. However, Trafiklab has stated that the API is more or less production-ready and that no braking changes in the API are expected. See [Trafiklab Realtime API webpage](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) for more information.
 
 
 ## Installation
@@ -47,22 +48,29 @@ The integration uses the newer **Trafiklab Realtime APIs**, which currently is i
 
 ### Prerequisites
 
-1. Get an API key from [Trafiklab](https://www.trafiklab.se/) - it's free but please note that there are a default API quota with the limitation of 25 calls per minute and 100.000 calls per month.
+1. Get your API key(s) from [Trafiklab](https://www.trafiklab.se/) - it's free but please note that there are a default API quota with API call limitation.
 2. Find the area/stop ID for your desired stop using the Stop Lookup service (see below)
+
+Note about Resrobot: Trip planning uses Resrobot Travel Search which requires its own API key, requested from the same Trafiklab website where you request the Realtime API key. Make sure to activate/request both keys if you plan to use both sensor types.
 
 ### Setup
 
-1. Go to Settings → Devices & Services
-2. Click "Add Integration"
-3. Search for "Trafiklab"
-4. Enter your API key and area/stop ID (see instructions below on how to use the lookup Stop ID)
-5. Configure the integration name
-6. Choose sensor type (departures or arrivals)
-7. Optionally filter by specific lines (comma-separated, e.g., "1,4,7")
-8. Optionally filter by destination substring (comma-separated case-insensitive, e.g., "slussen,medborgarplatsen,örebro", leave empty for all)
-9. Set time window (how many minutes ahead to search, default 60 minutes)
-10. Configure refresh interval (how often to fetch data from API, default 300 seconds, minimum 60 seconds)
-11. Optional: Update Condition (template). Enter a Jinja template that must render to the string 'true' for the integration to fetch new data. If the template renders to anything else or errors, the fetch is skipped and the previous data is kept.
+1. Go to Settings → Devices & Services → Add Integration → search for "Trafiklab".
+2. Enter your Trafiklab API key and choose a sensor type:
+   - Departures or Arrivals (Realtime)
+   - Travel Search (end-to-end trip planning)
+3. Enter a name (optional).
+4. Fill in the fields for the chosen sensor type:
+   - Departures/Arrivals:
+     - Area/Stop ID (use the Stop Lookup service if needed)
+     - Optional line filter and destination filter
+     - Time window and refresh interval
+     - Optional Update Condition (template)
+   - Travel Search:
+     - Origin and Destination: each can be a Stop ID or coordinates "lat,lon" (select type for each)
+     - Optional via/avoid Stop IDs and maximum walking distance
+     - Time window and refresh interval
+5. Finish to create the sensor.
 
 **Note**: The integration now uses **area IDs** from the Trafiklab Realtime API, which correspond to "rikshållplatser" (national stops) or meta-stops. Use the stop lookup service to find the correct area ID for your stop.
 
@@ -71,21 +79,35 @@ The refresh interval controls how often the integration fetches data from the Tr
 
 ## Sensors
 
+
 The integration creates sensors based on your configuration:
 
+### Sensor Entity Naming
+
+- **Entity ID format:**
+  - Departure: `sensor.trafiklab_departure_[friendly_name_slug]`
+  - Arrival: `sensor.trafiklab_arrival_[friendly_name_slug]`
+  - Travel: `sensor.trafiklab_travel_[friendly_name_slug]`
+  - Where `[friendly_name_slug]` is a slugified version of the name you configure in the UI.
+
 ### Departure Sensors (when sensor type is "Departures")
-- **Next Departure Sensor** (`sensor.[name]_next_departure`)
-  - **State**: Minutes until next departure (integer)
-  - **Unit**: Minutes
-  - **Device Class**: Duration
-  - **Attributes**: Detailed information about the next departure
+- **State**: Minutes until next departure (integer)
+- **Unit**: Minutes
+- **Device Class**: Duration
+- **Attributes**: Detailed information about the next departure
 
 ### Arrival Sensors (when sensor type is "Arrivals")
-- **Next Arrival Sensor** (`sensor.[name]_next_arrival`)
-  - **State**: Minutes until next arrival (integer)
-  - **Unit**: Minutes
-  - **Device Class**: Duration
-  - **Attributes**: Detailed information about the next arrival
+- **State**: Minutes until next arrival (integer)
+- **Unit**: Minutes
+- **Device Class**: Duration
+- **Attributes**: Detailed information about the next arrival
+
+### Resrobot Travel Search Sensors (new in v0.6.0)
+- **State**: Minutes until the first upcoming leg within the configured time window
+- **Unit**: Minutes
+- **Device Class**: Duration
+- **Attributes**: Normalized list of trips and legs (origin/destination times, product, category, duration, etc.)
+
 
 ### Sensor Attributes
 
@@ -201,7 +223,7 @@ automation:
   - alias: "Bus departure notification"
     trigger:
       - platform: numeric_state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
         below: 6
         above: 4
     action:
@@ -216,16 +238,16 @@ automation:
   - alias: "Departures within 10 minutes"
     trigger:
       - platform: state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
     condition:
       - condition: numeric_state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
         below: 11
         above: 0
     action:
       - service: notify.mobile_app_my_phone
         data:
-          message: "Next departure in {{ states('sensor.my_stop_next_departure') }} minutes"
+          message: "Next departure in {{ states('sensor.trafiklab_departures_my_stop') }} minutes"
 ```
 
 #### Working with Upcoming Array - Line-Specific Automation
@@ -239,7 +261,7 @@ automation:
       # Check if line 7 is departing within 15 minutes
       - condition: template
         value_template: >
-          {{ state_attr('sensor.my_stop_next_departure', 'upcoming') 
+          {{ state_attr('sensor.trafiklab_departures_my_stop', 'upcoming') 
              | selectattr('line', 'eq', '7') 
              | selectattr('minutes_until', '<=', 15) 
              | list | count > 0 }}
@@ -248,7 +270,7 @@ automation:
         data:
           message: >
             Line 7 departures in next 15 minutes:
-            {% set line7_departures = state_attr('sensor.my_stop_next_departure', 'upcoming') 
+            {% set line7_departures = state_attr('sensor.trafiklab_departures_my_stop', 'upcoming') 
                | selectattr('line', 'eq', '7') 
                | selectattr('minutes_until', '<=', 15) | list %}
             {% for departure in line7_departures %}
@@ -262,13 +284,13 @@ automation:
   - alias: "Delayed departures notification"
     trigger:
       - platform: state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
         attribute: upcoming
     condition:
       # Check if any upcoming departure is delayed more than 5 minutes
       - condition: template
         value_template: >
-          {{ state_attr('sensor.my_stop_next_departure', 'upcoming') 
+          {{ state_attr('sensor.trafiklab_departures_my_stop', 'upcoming') 
              | selectattr('delay_minutes', '>', 5) 
              | list | count > 0 }}
     action:
@@ -276,7 +298,7 @@ automation:
         data:
           message: >
             Delayed departures detected:
-            {% set delayed = state_attr('sensor.my_stop_next_departure', 'upcoming') 
+            {% set delayed = state_attr('sensor.trafiklab_departures_my_stop', 'upcoming') 
                | selectattr('delay_minutes', '>', 5) | list %}
             {% for departure in delayed %}
             Line {{ departure.line }} delayed {{ departure.delay_minutes }} minutes
@@ -289,16 +311,16 @@ automation:
   - alias: "Platform information"
     trigger:
       - platform: numeric_state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
         below: 3
     condition:
       - condition: template
-        value_template: "{{ state_attr('sensor.my_stop_next_departure', 'platform') != '' }}"
+        value_template: "{{ state_attr('sensor.trafiklab_departures_my_stop', 'platform') != '' }}"
     action:
       - service: notify.mobile_app_my_phone
         data:
           message: >
-            Next departure from platform {{ state_attr('sensor.my_stop_next_departure', 'platform') }} 
+            Next departure from platform {{ state_attr('sensor.trafiklab_departures_my_stop', 'platform') }} 
             in {{ states('sensor.my_stop_next_departure') }} minutes!
 ```
 
@@ -369,11 +391,11 @@ automation:
 type: entities
 title: Bus Departures
 entities:
-  - entity: sensor.my_stop_next_departure
+  - entity: sensor.trafiklab_departures_my_stop
     name: Next Departure
     secondary_info: >
-      Line {{ state_attr('sensor.my_stop_next_departure', 'line') }} 
-      to {{ state_attr('sensor.my_stop_next_departure', 'destination') }}
+      Line {{ state_attr('sensor.trafiklab_departures_my_stop', 'line') }} 
+      to {{ state_attr('sensor.trafiklab_departures_my_stop', 'destination') }}
 show_header_toggle: false
 ```
 
@@ -382,10 +404,10 @@ show_header_toggle: false
 type: markdown
 title: Upcoming Departures
 content: |
-  **Next Departure:** {{ states('sensor.my_stop_next_departure') }} minutes
+  **Next Departure:** {{ states('sensor.trafiklab_departures_my_stop') }} minutes
   
   **Upcoming:**
-  {% for departure in state_attr('sensor.my_stop_next_departure', 'upcoming')[:5] %}
+  {% for departure in state_attr('sensor.trafiklab_departures_my_stop', 'upcoming')[:5] %}
   - Line **{{ departure.line }}** to {{ departure.destination }} 
     at {{ departure.time_formatted }} ({{ departure.minutes_until }} min)
     {% if departure.delay_minutes > 0 %}⚠️ {{ departure.delay_minutes }}min delayed{% endif %}
@@ -395,7 +417,7 @@ content: |
 #### Gauge Card for Minutes Until Departure
 ```yaml
 type: gauge
-entity: sensor.my_stop_next_departure
+entity: sensor.trafiklab_departures_my_stop
 name: Minutes Until Departure
 min: 0
 max: 30
@@ -472,6 +494,7 @@ This integration uses the following Trafiklab APIs and endpoints:
 - [Trafiklab Realtime APIs](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/)
 - [Trafiklab Timetables](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/timetables/) (for departures and arrivals)
 - [Trafiklab Stop Lookup](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/stop-lookup/) (for finding stops)
+- [Resrobot Travel Search](https://www.trafiklab.se/api/our-apis/resrobot-v21/) (via Trafiklab) for trip planning between origin and destination (separate API key)
 
 
 ## License
@@ -488,8 +511,6 @@ This project is licensed under the Creative Commons Attribution-NonCommercial 4.
 
 Developing isn't my day job - I'm taking care of this integration solely on my free time. This means that I most probably won't try the integration out in pre-releases of Home Assistant updates. Thus, it might break in the .0 versions of Home Assistant releases before I'm able to take care of it. Feel free to contribute though!
 
-- Todo: Add support for the Trafiklab Route Planner
-- Todo: Add functionality to only update integration sensors if "something" is true, by using a template sensor for example
 - [Feature Request (mark as "FR")](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/issues)
 - [Report Issues](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/issues)
 - [Trafiklab API Documentation](https://www.trafiklab.se/api/)
