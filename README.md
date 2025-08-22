@@ -28,7 +28,7 @@ This integration has not been developed by, or in collaboration with, Trafiklab/
 - **Multi-language support**: English and Swedish translations
 - **Nationwide coverage**: Covers all public transport operators in Sweden that are a part of Trafiklab API. 
 
-The integration uses the newer **Trafiklab Realtime APIs**, which currently is in a beta release. Until the API is production-ready this integration will remain in "testing" state. See [Trafiklab Realtime API webpage](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) for more information.
+The integration uses the newer **Trafiklab Realtime APIs**, which currently is in a beta release. However, Trafiklab has stated that the API is more or less production-ready and that no braking changes in the API are expected. See [Trafiklab Realtime API webpage](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) for more information.
 
 
 ## Installation
@@ -79,28 +79,34 @@ The refresh interval controls how often the integration fetches data from the Tr
 
 ## Sensors
 
+
 The integration creates sensors based on your configuration:
 
+### Sensor Entity Naming
+
+- **Entity ID format:**
+  - Departure: `sensor.trafiklab_departure_[friendly_name_slug]`
+  - Arrival: `sensor.trafiklab_arrival_[friendly_name_slug]`
+  - Travel: `sensor.trafiklab_travel_[friendly_name_slug]`
+  - Where `[friendly_name_slug]` is a slugified version of the name you configure in the UI.
+
 ### Departure Sensors (when sensor type is "Departures")
-- **Next Departure Sensor** (`sensor.[name]_next_departure`)
-  - **State**: Minutes until next departure (integer)
-  - **Unit**: Minutes
-  - **Device Class**: Duration
-  - **Attributes**: Detailed information about the next departure
+- **State**: Minutes until next departure (integer)
+- **Unit**: Minutes
+- **Device Class**: Duration
+- **Attributes**: Detailed information about the next departure
 
 ### Arrival Sensors (when sensor type is "Arrivals")
-- **Next Arrival Sensor** (`sensor.[name]_next_arrival`)
-  - **State**: Minutes until next arrival (integer)
-  - **Unit**: Minutes
-  - **Device Class**: Duration
-  - **Attributes**: Detailed information about the next arrival
+- **State**: Minutes until next arrival (integer)
+- **Unit**: Minutes
+- **Device Class**: Duration
+- **Attributes**: Detailed information about the next arrival
 
-### Resrobot Travel Search Sensors (new)
-- **Travel Search Sensor** (`sensor.[name]_resrobot_travel`)
-  - **State**: Minutes until the first upcoming leg within the configured time window
-  - **Unit**: Minutes
-  - **Device Class**: Duration
-  - **Attributes**: Normalized list of trips and legs (origin/destination times, product, category, duration, etc.)
+### Resrobot Travel Search Sensors (new in v0.6.0)
+- **State**: Minutes until the first upcoming leg within the configured time window
+- **Unit**: Minutes
+- **Device Class**: Duration
+- **Attributes**: Normalized list of trips and legs (origin/destination times, product, category, duration, etc.)
 
 
 ### Sensor Attributes
@@ -217,7 +223,7 @@ automation:
   - alias: "Bus departure notification"
     trigger:
       - platform: numeric_state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
         below: 6
         above: 4
     action:
@@ -232,16 +238,16 @@ automation:
   - alias: "Departures within 10 minutes"
     trigger:
       - platform: state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
     condition:
       - condition: numeric_state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
         below: 11
         above: 0
     action:
       - service: notify.mobile_app_my_phone
         data:
-          message: "Next departure in {{ states('sensor.my_stop_next_departure') }} minutes"
+          message: "Next departure in {{ states('sensor.trafiklab_departures_my_stop') }} minutes"
 ```
 
 #### Working with Upcoming Array - Line-Specific Automation
@@ -255,7 +261,7 @@ automation:
       # Check if line 7 is departing within 15 minutes
       - condition: template
         value_template: >
-          {{ state_attr('sensor.my_stop_next_departure', 'upcoming') 
+          {{ state_attr('sensor.trafiklab_departures_my_stop', 'upcoming') 
              | selectattr('line', 'eq', '7') 
              | selectattr('minutes_until', '<=', 15) 
              | list | count > 0 }}
@@ -264,7 +270,7 @@ automation:
         data:
           message: >
             Line 7 departures in next 15 minutes:
-            {% set line7_departures = state_attr('sensor.my_stop_next_departure', 'upcoming') 
+            {% set line7_departures = state_attr('sensor.trafiklab_departures_my_stop', 'upcoming') 
                | selectattr('line', 'eq', '7') 
                | selectattr('minutes_until', '<=', 15) | list %}
             {% for departure in line7_departures %}
@@ -278,13 +284,13 @@ automation:
   - alias: "Delayed departures notification"
     trigger:
       - platform: state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
         attribute: upcoming
     condition:
       # Check if any upcoming departure is delayed more than 5 minutes
       - condition: template
         value_template: >
-          {{ state_attr('sensor.my_stop_next_departure', 'upcoming') 
+          {{ state_attr('sensor.trafiklab_departures_my_stop', 'upcoming') 
              | selectattr('delay_minutes', '>', 5) 
              | list | count > 0 }}
     action:
@@ -292,7 +298,7 @@ automation:
         data:
           message: >
             Delayed departures detected:
-            {% set delayed = state_attr('sensor.my_stop_next_departure', 'upcoming') 
+            {% set delayed = state_attr('sensor.trafiklab_departures_my_stop', 'upcoming') 
                | selectattr('delay_minutes', '>', 5) | list %}
             {% for departure in delayed %}
             Line {{ departure.line }} delayed {{ departure.delay_minutes }} minutes
@@ -305,16 +311,16 @@ automation:
   - alias: "Platform information"
     trigger:
       - platform: numeric_state
-        entity_id: sensor.my_stop_next_departure
+        entity_id: sensor.trafiklab_departures_my_stop
         below: 3
     condition:
       - condition: template
-        value_template: "{{ state_attr('sensor.my_stop_next_departure', 'platform') != '' }}"
+        value_template: "{{ state_attr('sensor.trafiklab_departures_my_stop', 'platform') != '' }}"
     action:
       - service: notify.mobile_app_my_phone
         data:
           message: >
-            Next departure from platform {{ state_attr('sensor.my_stop_next_departure', 'platform') }} 
+            Next departure from platform {{ state_attr('sensor.trafiklab_departures_my_stop', 'platform') }} 
             in {{ states('sensor.my_stop_next_departure') }} minutes!
 ```
 
@@ -385,11 +391,11 @@ automation:
 type: entities
 title: Bus Departures
 entities:
-  - entity: sensor.my_stop_next_departure
+  - entity: sensor.trafiklab_departures_my_stop
     name: Next Departure
     secondary_info: >
-      Line {{ state_attr('sensor.my_stop_next_departure', 'line') }} 
-      to {{ state_attr('sensor.my_stop_next_departure', 'destination') }}
+      Line {{ state_attr('sensor.trafiklab_departures_my_stop', 'line') }} 
+      to {{ state_attr('sensor.trafiklab_departures_my_stop', 'destination') }}
 show_header_toggle: false
 ```
 
@@ -398,10 +404,10 @@ show_header_toggle: false
 type: markdown
 title: Upcoming Departures
 content: |
-  **Next Departure:** {{ states('sensor.my_stop_next_departure') }} minutes
+  **Next Departure:** {{ states('sensor.trafiklab_departures_my_stop') }} minutes
   
   **Upcoming:**
-  {% for departure in state_attr('sensor.my_stop_next_departure', 'upcoming')[:5] %}
+  {% for departure in state_attr('sensor.trafiklab_departures_my_stop', 'upcoming')[:5] %}
   - Line **{{ departure.line }}** to {{ departure.destination }} 
     at {{ departure.time_formatted }} ({{ departure.minutes_until }} min)
     {% if departure.delay_minutes > 0 %}⚠️ {{ departure.delay_minutes }}min delayed{% endif %}
@@ -411,7 +417,7 @@ content: |
 #### Gauge Card for Minutes Until Departure
 ```yaml
 type: gauge
-entity: sensor.my_stop_next_departure
+entity: sensor.trafiklab_departures_my_stop
 name: Minutes Until Departure
 min: 0
 max: 30
