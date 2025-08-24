@@ -316,18 +316,25 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             "FLT": "Ferry",
         }
 
-        def translate_category(abbrev: str | None, product_obj: dict) -> str:
-            # Prefer long/short labels from Product when present
-            if product_obj:
-                name_l = product_obj.get("catOutL") or product_obj.get("catInL")
-                if name_l:
-                    return str(name_l)
-                name_s = product_obj.get("catOutS") or product_obj.get("catInS")
-                if name_s:
-                    return str(name_s)
-            if abbrev and abbrev in category_map:
-                return category_map[abbrev]
-            return abbrev or ""
+        # Map leg.type codes to human-friendly strings
+        type_map = {
+            "JNY": "Public Transport",
+            "TRSF": "Transfer",
+            "WALK": "Walk to/from",
+        }
+
+        def translate_category(abbrev: str | None) -> str:
+            """Translate the API category code via category_map; fallback to raw code."""
+            if not abbrev:
+                return ""
+            key = str(abbrev).upper()
+            return category_map.get(key, str(abbrev))
+
+        def translate_type(raw_type: str | None) -> str:
+            if not raw_type:
+                return ""
+            key = str(raw_type).upper()
+            return type_map.get(key, str(raw_type))
 
         def parse_iso_duration_minutes(dur: Any) -> int | None:
             """Parse ISO8601 duration (e.g., PT1H30M, PT9M, PT45S) into integer minutes."""
@@ -372,9 +379,12 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                     product_obj = product[0] if product else {}
                 else:
                     product_obj = product or {}
-                # Determine translated category
-                category_abbrev = (leg or {}).get("category") or product_obj.get("catOut") or product_obj.get("catIn")
-                category_full = translate_category(category_abbrev, product_obj)
+                # Determine translated category from leg.category only
+                category_abbrev = (leg or {}).get("category")
+                category_full = translate_category(category_abbrev)
+                # Determine translated type
+                raw_type = (leg or {}).get("type")
+                type_full = translate_type(raw_type)
                 # Determine duration in minutes (prefer leg.duration, fallback to GisRoute.durS)
                 dur_iso = (leg or {}).get("duration") or ((leg or {}).get("GisRoute") or {}).get("durS")
                 duration_minutes = parse_iso_duration_minutes(dur_iso)
@@ -384,12 +394,14 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                     "origin_time": f"{origin.get('date', '')} {origin.get('time', '')}".strip(),
                     "dest_name": dest.get("name", ""),
                     "dest_time": f"{dest.get('date', '')} {dest.get('time', '')}".strip(),
-                    "type": leg.get("type", ""),
+                    # Apply translation so 'type' is human readable (Public Transport/Transfer/Walk to/from)
+                    "type": type_full,
                     "product": product_obj.get("name", ""),
                     "direction": leg.get("direction", ""),
                     "distance": leg.get("dist"),
                     "line_number": leg.get("number") or product_obj.get("num") or product_obj.get("displayNumber"),
                     "duration": duration_minutes,
+                    # Apply translation for category using Product labels or category_map fallback
                     "category": category_full,
                 }
                 # attach parsed dt for sorting
