@@ -14,6 +14,9 @@ For a complete list of traffic operators covered by the API and this integration
 
 This integration has not been developed by, or in collaboration with, Trafiklab/Samtrafiken but is entirely community-developed. Trafiklab/Samtrafiken has been informed about the integration and has given the project a thumbs-up regarding the use of their API, etc. See [Trafiklab Praise page](https://support.trafiklab.se/org/trafiklabse/d/realtime-api-integrerat-i-home-assistant/) as reference.
 
+## Dashboard card
+There's also a [Timetable Lovelace Dashboard custom card](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Timetable_Card) for usage with this integration - check it out!
+
 ## API and Integration Features
 
 - **Real-time departures and arrivals**: Get live realtime departure and arrival information from any Trafiklab covered stop in Sweden
