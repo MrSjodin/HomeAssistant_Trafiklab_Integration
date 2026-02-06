@@ -355,15 +355,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     def async_get_options_flow(config_entry):  # type: ignore[override]
-        return OptionsFlowHandler()
+        return OptionsFlowHandler(config_entry)
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options for existing entries."""
 
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        super().__init__()
+        self._entry = config_entry
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:  # noqa: D401
-        data = self.config_entry.data
-        options = self.config_entry.options
+        data = self._entry.data
+        options = self._entry.options
 
         def _opt(key: str, default: Any = ""):
             return options.get(key, data.get(key, default))
@@ -371,7 +376,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         is_resrobot = data.get(CONF_SENSOR_TYPE) == SENSOR_TYPE_RESROBOT
 
         if user_input is not None:
-            prev_options = self.config_entry.options
+            prev_options = self._entry.options
             merged_options: dict[str, Any] = dict(prev_options)
 
             # Common numeric baselines
