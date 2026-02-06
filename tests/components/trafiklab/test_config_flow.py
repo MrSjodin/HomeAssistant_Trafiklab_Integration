@@ -130,3 +130,4 @@ async def test_options_flow_departure(hass: HomeAssistant, enable_custom_integra
     )
     assert result["type"] == "create_entry"
     assert result["data"]["line_filter"] == "52"
+
