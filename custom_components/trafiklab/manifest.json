@@ -9,5 +9,5 @@
     "iot_class": "cloud_polling",
     "issue_tracker": "https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration/issues",
     "requirements": [],
-    "version": "0.6.0"
+    "version": "0.6.5"
 }
