@@ -1,6 +1,6 @@
 # Home Assistant Trafiklab Integration
 
-[![Testing](https://img.shields.io/badge/project%20state-testing-yellow.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
+[![Stable](https://img.shields.io/badge/project%20state-stable-green.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![HACS](https://img.shields.io/badge/HACS-default-brightgreen.svg)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/maintainer-MrSjodin-blue.svg)](https://github.com/MrSjodin)
@@ -33,7 +33,7 @@ There's also a couple of Lovelace dashboard cards to use as companions to this i
 - **Multi-language support**: English and Swedish translations
 - **Nationwide coverage**: Covers all public transport operators in Sweden that are a part of Trafiklab API. 
 
-The integration uses the newer **Trafiklab Realtime APIs**, which currently is in a beta release. However, Trafiklab has stated that the API is more or less production-ready and that no braking changes in the API are expected. See [Trafiklab Realtime API webpage](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) for more information.
+The integration uses the newer **Trafiklab Realtime APIs** - see [Trafiklab Realtime API webpage](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) for more information.
 
 
 ## Installation
@@ -434,7 +434,7 @@ severity:
 
 ## Operators
 
-At the time of the initial release, the following operators are represented in the API
+The following operators are currently represented in the API:
 
 ### Static (timetable) data and realtime traffic data
 
@@ -444,6 +444,8 @@ At the time of the initial release, the following operators are represented in t
 - JLT (Jönköping)
 - Kronoberg
 - KLT (Kalmar)
+- Gotland
+- Blekingetrafiken
 - Skånetrafiken
 - Värmlandstrafik
 - Örebro, Länstrafiken
@@ -455,8 +457,6 @@ At the time of the initial release, the following operators are represented in t
 ### Static (timetable) data
 
 - Sörmlandstrafiken
-- Gotland
-- Blekingetrafiken
 - Hallandstrafiken
 - Västtrafik
 - Jämtland
@@ -470,8 +470,8 @@ At the time of the initial release, the following operators are represented in t
 - Lennakatten
 - Luleå Lokaltrafik
 - Masexpressen
-- Mälartåg
-- Norrtåg
+- Mälartåg ersättningstrafik
+- Norrtåg ersättningsstrafik (VR Sverige)
 - Ressel Rederi
 - Roslagens sjötrafik
 - SJ
@@ -484,10 +484,11 @@ At the time of the initial release, the following operators are represented in t
 - TJF Smalspåret
 - Trosabussen
 - Tågab
+- Uddevalla Skärgårdsbåtar AB
 - VR
+- Vy Norge
 - Vy Tåg AB
 - Vy Värmlandstrafik
-- Vygruppen Norge
 - Y-Buss
 
 For current list of operators, please visit [Trafiklab Timetables page](https://www.trafiklab.se/sv/api/our-apis/trafiklab-realtime-apis/timetables/)

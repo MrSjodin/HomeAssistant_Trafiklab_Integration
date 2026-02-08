@@ -111,15 +111,23 @@ async def test_options_flow_departure(hass: HomeAssistant, enable_custom_integra
         unique_id="uid",
     )
     entry.add_to_hass(hass)
-    # Use handler directly to avoid full HA UI machinery
-    from custom_components.trafiklab.config_flow import OptionsFlowHandler
-    handler = OptionsFlowHandler(entry)
-    result = await handler.async_step_init({
-        "line_filter": "52",
-        "direction": "Cent",
-        "time_window": 30,
-        "refresh_interval": 120,
-        "update_condition": "true",
-    })
+    
+    # Use the proper HA flow manager to initialize the options flow
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+    
+    # Submit the options form
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={
+            "line_filter": "52",
+            "direction": "Cent",
+            "time_window": 30,
+            "refresh_interval": 120,
+            "update_condition": "true",
+        }
+    )
     assert result["type"] == "create_entry"
     assert result["data"]["line_filter"] == "52"
+
