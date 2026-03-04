@@ -208,7 +208,7 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             "transport_mode": first_item.get("route", {}).get("transport_mode", ""),
             "real_time": first_item.get("is_realtime", False),
             "delay": first_item.get("delay", 0),
-            "canceled": first_item.get("canceled", False),
+            "canceled": first_item.get("canceled"),
             "platform": first_item.get("realtime_platform", {}).get("designation", ""),
             "upcoming": self._build_upcoming_array(items[:10], configured_direction),
             "attribution": "Data from Trafiklab.se",
@@ -257,7 +257,7 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                     "delay_minutes": int(item.get("delay", 0) / 60)
                     if item.get("delay")
                     else 0,
-                    "canceled": bool(item.get("canceled", False)),
+                    "canceled": bool(item.get("canceled")),
                     "platform": item.get("realtime_platform", {})
                     .get("designation", "")
                     or item.get("scheduled_platform", {})
