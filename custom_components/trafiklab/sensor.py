@@ -200,16 +200,16 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
         merged_cfg = {**self._entry.data, **self._entry.options}
         configured_direction = merged_cfg.get(CONF_DIRECTION, "")
         return {
-            "line": first_item.get("route", {}).get("designation", ""),
-            "destination": first_item.get("route", {}).get("direction", ""),
+            "line": (first_item.get("route") or {}).get("designation", ""),
+            "destination": (first_item.get("route") or {}).get("direction", ""),
             "direction": configured_direction,
             "scheduled_time": first_item.get("scheduled", ""),
             "expected_time": first_item.get("realtime", ""),
-            "transport_mode": first_item.get("route", {}).get("transport_mode", ""),
+            "transport_mode": (first_item.get("route") or {}).get("transport_mode", ""),
             "real_time": first_item.get("is_realtime", False),
             "delay": first_item.get("delay", 0),
             "canceled": first_item.get("canceled"),
-            "platform": first_item.get("realtime_platform", {}).get("designation", ""),
+            "platform": (first_item.get("realtime_platform") or {}).get("designation", ""),
             "upcoming": self._build_upcoming_array(items[:10], configured_direction),
             "attribution": "Data from Trafiklab.se",
             "last_update": getattr(self.coordinator, "last_successful_update", None),
@@ -242,15 +242,15 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             upcoming.append(
                 {
                     "index": idx,
-                    "line": item.get("route", {}).get("designation", "") or "Unknown",
-                    "destination": item.get("route", {}).get("direction", "")
+                    "line": (item.get("route") or {}).get("designation", "") or "Unknown",
+                    "destination": (item.get("route") or {}).get("direction", "")
                     or "Unknown",
                     "direction": configured_direction,
                     "scheduled_time": scheduled_time,
                     "expected_time": realtime_time,
                     "time_formatted": time_formatted,
                     "minutes_until": minutes_until,
-                    "transport_mode": item.get("route", {}).get("transport_mode", "")
+                    "transport_mode": (item.get("route") or {}).get("transport_mode", "")
                     or "Unknown",
                     "real_time": bool(item.get("is_realtime", False)),
                     "delay": int(item.get("delay", 0)),
@@ -258,13 +258,13 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                     if item.get("delay")
                     else 0,
                     "canceled": bool(item.get("canceled")),
-                    "platform": item.get("realtime_platform", {})
+                    "platform": (item.get("realtime_platform") or {})
                     .get("designation", "")
-                    or item.get("scheduled_platform", {})
+                    or (item.get("scheduled_platform") or {})
                     .get("designation", ""),
-                    "route_name": item.get("route", {}).get("name", "") or "",
-                    "agency": item.get("agency", {}).get("name", "") or "",
-                    "trip_id": item.get("trip", {}).get("trip_id", "") or "",
+                    "route_name": (item.get("route") or {}).get("name", "") or "",
+                    "agency": (item.get("agency") or {}).get("name", "") or "",
+                    "trip_id": (item.get("trip") or {}).get("trip_id", "") or "",
                 }
             )
         return upcoming
