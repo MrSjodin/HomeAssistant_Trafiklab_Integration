@@ -131,3 +131,34 @@ async def test_options_flow_departure(hass: HomeAssistant, enable_custom_integra
     assert result["type"] == "create_entry"
     assert result["data"]["line_filter"] == "52"
 
+
+@pytest.mark.asyncio
+async def test_options_flow_clear_line_filter(hass: HomeAssistant, enable_custom_integrations: None) -> None:
+    """Clearing line_filter (setting it to empty) must persist as '' not revert to the old value."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "k", "stop_id": "740098000", "name": "X", "sensor_type": "departure"},
+        options={"line_filter": "52", "direction": "Cent", "time_window": 30, "refresh_interval": 120, "update_condition": ""},
+        unique_id="uid2",
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    # Clear line_filter; keep other fields unchanged
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={
+            "line_filter": "",
+            "direction": "Cent",
+            "time_window": 30,
+            "refresh_interval": 120,
+            "update_condition": "",
+        },
+    )
+    assert result["type"] == "create_entry"
+    assert result["data"]["line_filter"] == ""
+    assert result["data"]["direction"] == "Cent"
+
