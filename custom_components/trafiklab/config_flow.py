@@ -8,7 +8,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME as HA_CONF_NAME  # avoid collision; not used
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
@@ -354,6 +354,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
+    @callback
     def async_get_options_flow(config_entry):  # type: ignore[override]
         return OptionsFlowHandler(config_entry)
 
@@ -367,65 +368,43 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:  # noqa: D401
-        data = self._entry.data
-        options = self._entry.options
-
-        def _opt(key: str, default: Any = ""):
-            return options.get(key, data.get(key, default))
-
-        is_resrobot = data.get(CONF_SENSOR_TYPE) == SENSOR_TYPE_RESROBOT
+        is_resrobot = self._entry.data.get(CONF_SENSOR_TYPE) == SENSOR_TYPE_RESROBOT
 
         if user_input is not None:
-            prev_options = self._entry.options
-            merged_options: dict[str, Any] = dict(prev_options)
-
-            # Common numeric baselines
-            if CONF_TIME_WINDOW not in merged_options:
-                merged_options[CONF_TIME_WINDOW] = _opt(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW)
-            if CONF_REFRESH_INTERVAL not in merged_options:
-                merged_options[CONF_REFRESH_INTERVAL] = _opt(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL)
-
-            if is_resrobot:
-                # Merge Resrobot-specific options; only update keys provided
-                for key in ("via", "avoid", "max_walking_distance", CONF_TIME_WINDOW, CONF_REFRESH_INTERVAL):
-                    if key in user_input:
-                        merged_options[key] = user_input[key]
-            else:
-                # Standard departure/arrival options; only update keys provided
-                for key in (CONF_LINE_FILTER, CONF_DIRECTION, CONF_UPDATE_CONDITION, CONF_TIME_WINDOW, CONF_REFRESH_INTERVAL):
-                    if key in user_input:
-                        merged_options[key] = user_input[key]
-
-            return self.async_create_entry(title="", data=merged_options)
+            return self.async_create_entry(title="", data=user_input)
 
         if is_resrobot:
             schema = vol.Schema({
-                vol.Optional("via", default=_opt("via", "")): str,
-                vol.Optional("avoid", default=_opt("avoid", "")): str,
-                vol.Optional("max_walking_distance", default=_opt("max_walking_distance", 1000)): vol.All(
+                vol.Optional(CONF_VIA, default=""): str,
+                vol.Optional(CONF_AVOID, default=""): str,
+                vol.Optional(CONF_MAX_WALKING_DISTANCE, default=1000): vol.All(
                     vol.Coerce(int), vol.Range(min=0, max=10000)
                 ),
-                vol.Optional(CONF_REFRESH_INTERVAL, default=_opt(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL)): vol.All(
+                vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
                     vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
                 ),
-                vol.Optional(CONF_TIME_WINDOW, default=_opt(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW)): vol.All(
+                vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=1440)
                 ),
             })
         else:
             schema = vol.Schema({
-                vol.Optional(CONF_LINE_FILTER, default=_opt(CONF_LINE_FILTER, "")): str,
-                vol.Optional(CONF_DIRECTION, default=_opt(CONF_DIRECTION, "")): str,
-                vol.Optional(CONF_TIME_WINDOW, default=_opt(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW)): vol.All(
+                vol.Optional(CONF_LINE_FILTER, default=""): str,
+                vol.Optional(CONF_DIRECTION, default=""): str,
+                vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=1440)
                 ),
-                vol.Optional(CONF_REFRESH_INTERVAL, default=_opt(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL)): vol.All(
+                vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
                     vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
                 ),
-                vol.Optional(CONF_UPDATE_CONDITION, default=_opt(CONF_UPDATE_CONDITION, "")): str,
+                vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
             })
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        current_values = {**self._entry.data, **self._entry.options}
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(schema, current_values),
+        )
 
 
 # ---------------------------------------------------------------------------
