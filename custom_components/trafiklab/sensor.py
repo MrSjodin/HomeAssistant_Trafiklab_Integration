@@ -21,6 +21,7 @@ from .const import (
     CONF_SENSOR_TYPE,
     CONF_DIRECTION,
     CONF_LINE_FILTER,
+    CONF_MAX_TRIP_DURATION,
     SENSOR_TYPE_ARRIVAL,
     SENSOR_TYPE_RESROBOT,
 )
@@ -125,8 +126,9 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             if not trips_raw:
                 return None
             # Normalize + sort trips/legs locally as well (in case coordinator didn't)
-            trips_sorted = self._normalize_resrobot_trips(trips_raw)
             options = {**self._entry.options, **self._entry.data}
+            max_trip_duration: int | None = options.get(CONF_MAX_TRIP_DURATION)
+            trips_sorted = self._normalize_resrobot_trips(trips_raw, max_trip_duration)
             time_window = int(options.get("time_window", 60))
             from datetime import datetime
             now = datetime.now()
@@ -184,7 +186,9 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             trips_raw = self.coordinator.data.get("Trip", [])
             if not trips_raw:
                 return {}
-            trips_sorted = self._normalize_resrobot_trips(trips_raw)
+            options_merged = {**self._entry.options, **self._entry.data}
+            max_trip_duration: int | None = options_merged.get(CONF_MAX_TRIP_DURATION)
+            trips_sorted = self._normalize_resrobot_trips(trips_raw, max_trip_duration)
             return {
                 "num_trips": len(trips_sorted),
                 "trips": trips_sorted,
@@ -269,7 +273,7 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             )
         return upcoming
 
-    def _normalize_resrobot_trips(self, trips_raw: Any) -> list[dict[str, Any]]:
+    def _normalize_resrobot_trips(self, trips_raw: Any, max_trip_duration: int | None = None) -> list[dict[str, Any]]:
         """Normalize and sort ResRobot trips and their legs for attribute exposure.
 
         Returns a list of trips where each has a key "legs" which is a list of
@@ -435,16 +439,46 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                 torg = (trip or {}).get("Origin", {}) or {}
                 first_leg_dt = parse_dt(torg.get("date", ""), torg.get("time", "")) or datetime.max
 
+            # Compute total trip duration: first leg origin_time → last leg dest_time
+            duration_total: int | None = None
+            if simplified_legs:
+                first_leg = simplified_legs[0]
+                last_leg = simplified_legs[-1]
+                origin_dt = parse_dt(
+                    *first_leg.get("origin_time", " ").split(" ", 1)
+                ) if " " in first_leg.get("origin_time", "") else None
+                dest_str = last_leg.get("dest_time", "")
+                dest_dt: datetime | None = None
+                if dest_str:
+                    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+                        try:
+                            dest_dt = datetime.strptime(dest_str, fmt)
+                            break
+                        except ValueError:
+                            continue
+                if origin_dt is not None and dest_dt is not None:
+                    duration_total = max(0, int((dest_dt - origin_dt).total_seconds() / 60))
+
+            # Filter by max_trip_duration when set (None = no limit, backward compatible)
+            if (
+                max_trip_duration is not None
+                and duration_total is not None
+                and duration_total > max_trip_duration
+            ):
+                continue
+
             trips_out.append({
                 "index": idx,
                 "legs": simplified_legs,
+                "duration_total": duration_total,
                 "_dt": first_leg_dt,
             })
 
         # Sort trips by first leg datetime
         trips_out.sort(key=lambda t: t.get("_dt") or datetime.max)
-        for tp in trips_out:
+        for out_idx, tp in enumerate(trips_out):
             tp.pop("_dt", None)
+            tp["index"] = out_idx
         return trips_out
 
     def _get_data_items(self) -> list[dict]:

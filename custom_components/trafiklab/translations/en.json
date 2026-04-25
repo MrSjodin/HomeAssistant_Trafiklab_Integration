@@ -43,6 +43,7 @@
           "via": "Via",
           "avoid": "Avoid",
           "max_walking_distance": "Maximum Walking Distance (meters)",
+          "max_trip_duration": "Maximum Trip Duration (minutes, leave empty for no limit)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)"
         },
@@ -118,6 +119,7 @@
         "data": {
           "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
           "direction": "Destination Filter (substring; leave empty for all destinations)",
+          "max_trip_duration": "Maximum Trip Duration (minutes, leave empty for no limit)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
           "update_condition": "Update Condition (template; render to 'true' to fetch)"

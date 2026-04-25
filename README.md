@@ -26,6 +26,7 @@ There's also a couple of Lovelace dashboard cards to use as companions to this i
 - **Line filtering**: Monitor specific lines by filtering with comma-separated line numbers, per sensor
 - **Destination filtering**: Filter by (substring) text match of destination(s) at a stop (useful for busy stops), per sensor
 - **Configurable time window**: Set how many minutes ahead to search (1-1440 minutes), per sensor
+- **Maximum trip duration filter (new in v0.7.0)**: For Travel Search sensors, exclude trips whose total duration exceeds a configurable limit (1-1440 minutes). Leave empty for no limit. Backward compatible — existing config entries without this setting are unaffected.
 - **Multiple transport modes**: Support for buses, trains, metro, trams, and ships
 - **Flexible sensor configuration**: Create separate sensors for departures and arrivals
 - **Stop lookup service**: Search for the stop ID by it's name using Home Assistant service
@@ -75,6 +76,7 @@ Note about Resrobot: Trip planning uses Resrobot Travel Search which requires it
      - Origin and Destination: each can be a Stop ID or coordinates "lat,lon" (select type for each)
      - Optional via/avoid Stop IDs and maximum walking distance
      - Time window and refresh interval
+     - Optional maximum trip duration (in minutes) — trips longer than this are excluded from results
 5. Finish to create the sensor.
 
 **Note**: The integration now uses **area IDs** from the Trafiklab Realtime API, which correspond to "rikshållplatser" (national stops) or meta-stops. Use the stop lookup service to find the correct area ID for your stop.
@@ -113,6 +115,20 @@ The integration creates sensors based on your configuration:
 - **Device Class**: Duration
 - **Attributes**: Normalized list of trips and legs (origin/destination times, product, category, duration, etc.)
 
+#### Maximum Trip Duration Filter (new in v0.7.0)
+
+Travel Search sensors support an optional **Maximum Trip Duration** setting (1–1440 minutes). When set, any trip whose total travel time (first leg departure → last leg arrival) exceeds the limit is excluded from the `trips` attribute and cannot become the sensor state.
+
+Leave the field empty (or set to `None`) for no limit. This is the default, so existing sensors without this option are fully backward compatible.
+
+Each trip in the `trips` attribute now always includes a `duration_total` key (integer minutes, or `null` if times could not be parsed).
+
+```yaml
+# Example: only show trips shorter than 1 hour
+options:
+  max_trip_duration: 60
+```
+
 
 ### Sensor Attributes
 
@@ -130,6 +146,32 @@ All sensors include comprehensive attributes for automation use:
 - `canceled`: Boolean indicating if canceled
 - `platform`: Platform or stop position
 - `upcoming`: Array of upcoming departures/arrivals (see structure below)
+- `trips`: (Travel Search only) Array of upcoming trips — see structure below
+
+#### Travel Search Trips Array Structure
+
+The `trips` attribute on Travel Search sensors contains a sorted array of trips, each with:
+
+```json
+{
+  "index": 0,                           // Position in sorted list (0-based)
+  "duration_total": 45,                 // Total trip duration in minutes (null if unparseable)
+  "legs": [
+    {
+      "origin_name": "Stockholm C",     // Departure stop name
+      "origin_time": "2025-08-08 14:30:00", // Departure date+time
+      "dest_name": "Uppsala C",         // Arrival stop name
+      "dest_time": "2025-08-08 15:15:00",   // Arrival date+time
+      "type": "Public Transport",        // Leg type (Public Transport / Transfer / Walk to/from)
+      "product": "SJ Regional",          // Product/service name
+      "direction": "Uppsala",            // Headsign/direction
+      "line_number": "42",               // Line number
+      "category": "Train",               // Translated transport category
+      "duration": 45                     // Leg duration in minutes
+    }
+  ]
+}
+```
 
 #### Upcoming Departures/Arrivals Array Structure
 

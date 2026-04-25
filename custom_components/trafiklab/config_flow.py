@@ -45,6 +45,7 @@ from .const import (
     CONF_VIA,
     CONF_AVOID,
     CONF_MAX_WALKING_DISTANCE,
+    CONF_MAX_TRIP_DURATION,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -238,6 +239,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_VIA, default=""): str,
             vol.Optional(CONF_AVOID, default=""): str,
             vol.Optional(CONF_MAX_WALKING_DISTANCE, default=1000): vol.All(vol.Coerce(int), vol.Range(min=0, max=10000)),
+            vol.Optional(CONF_MAX_TRIP_DURATION, default=None): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))),
             vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)),
             vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
         })
@@ -251,6 +253,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             via = user_input.get("via", "")
             avoid = user_input.get("avoid", "")
             max_walking_distance = user_input.get("max_walking_distance", 1000)
+            max_trip_duration = user_input.get(CONF_MAX_TRIP_DURATION)
             refresh_interval = user_input.get("refresh_interval", DEFAULT_SCAN_INTERVAL)
             time_window = user_input.get("time_window", DEFAULT_TIME_WINDOW)
 
@@ -284,6 +287,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "via": via,
                     "avoid": avoid,
                     "max_walking_distance": max_walking_distance,
+                    CONF_MAX_TRIP_DURATION: user_input.get(CONF_MAX_TRIP_DURATION),
                     "refresh_interval": refresh_interval,
                     "time_window": time_window,
                 }
@@ -379,6 +383,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(CONF_AVOID, default=""): str,
                 vol.Optional(CONF_MAX_WALKING_DISTANCE, default=1000): vol.All(
                     vol.Coerce(int), vol.Range(min=0, max=10000)
+                ),
+                vol.Optional(CONF_MAX_TRIP_DURATION, default=None): vol.Any(
+                    None, vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))
                 ),
                 vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
                     vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
