@@ -24,6 +24,7 @@ CONF_DESTINATION: Final = "destination"
 CONF_VIA: Final = "via"
 CONF_AVOID: Final = "avoid"
 CONF_MAX_WALKING_DISTANCE: Final = "max_walking_distance"
+CONF_MAX_TRIP_DURATION: Final = "max_trip_duration"
 
 
 # Sensor types
