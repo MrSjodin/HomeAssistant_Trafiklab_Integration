@@ -31,6 +31,7 @@ class TrafikLabApiClient:
         via: str = "",
         avoid: str = "",
         max_walking_distance: int = 1000,
+        products: int | None = None,
     ) -> dict[str, Any]:
         """Call Resrobot Travel Search API."""
         # Build endpoint and params
@@ -62,6 +63,9 @@ class TrafikLabApiClient:
         # API expects: allowWalk, minDistance, maxDistance, percent
         params["originWalk"] = f"1,0,{max_walking_distance},75"
         params["destWalk"] = f"1,0,{max_walking_distance},75"
+        # Transport mode / products bitmask filter (request-side)
+        if products is not None:
+            params["products"] = str(products)
 
         try:
             async with self.session.get(url, params=params) as response:

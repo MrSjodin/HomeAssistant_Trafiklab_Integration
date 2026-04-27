@@ -22,6 +22,7 @@ from .const import (
     CONF_DIRECTION,
     CONF_LINE_FILTER,
     CONF_MAX_TRIP_DURATION,
+    CONF_TRANSPORT_MODES,
     SENSOR_TYPE_ARRIVAL,
     SENSOR_TYPE_RESROBOT,
 )
@@ -503,6 +504,11 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             if line_filter
             else None
         )
+        transport_mode_filter = {
+            m.upper()
+            for m in (merged_cfg.get(CONF_TRANSPORT_MODES) or [])
+            if m
+        }
 
         def match_line(item: dict) -> bool:
             if not line_set:
@@ -517,7 +523,13 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             dest_lower = destination.lower()
             return any(tok in dest_lower for tok in direction_tokens)
 
-        filtered = [it for it in raw_items if match_line(it) and match_direction(it)]
+        def match_transport_mode(item: dict) -> bool:
+            if not transport_mode_filter:
+                return True
+            mode = (item.get("route") or {}).get("transport_mode", "").upper()
+            return mode in transport_mode_filter
+
+        filtered = [it for it in raw_items if match_line(it) and match_direction(it) and match_transport_mode(it)]
         _LOGGER.debug(
             "Filtered %d -> %d items (lines=%s direction_substr='%s')",
             len(raw_items),

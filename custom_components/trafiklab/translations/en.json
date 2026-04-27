@@ -5,20 +5,11 @@
         "title": "Trafiklab",
         "description": "Set up your Trafiklab integration to get public transport information.",
         "data": {
-          "api_key": "Your API Key",
-          "stop_id": "Stop ID",
-          "site_id": "Site ID",
-          "line_number": "Line Number",
-          "transport_mode": "Transport Mode",
-          "name": "Name",
-          "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
-          "direction": "Direction (destination filter)",
           "sensor_type": "Sensor Type",
-          "time_window": "Time Window (minutes ahead to search)",
-          "refresh_interval": "Data Refresh Interval (seconds)",
-          "update_condition": "Update Condition (template; render to 'true' to fetch)"
+          "api_key": "API Key",
+          "name": "Name"
         },
-  "data_description": {}
+        "data_description": {}
       },
       "departure_arrival": {
         "title": "Configure Stop Sensor",
@@ -27,9 +18,13 @@
           "stop_id": "Stop ID",
           "line_filter": "Line Filter (comma-separated; empty for all lines)",
           "direction": "Destination Filter (substring; empty for all destinations)",
+          "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
           "update_condition": "Update Condition (template; render to 'true' to fetch)"
+        },
+        "data_description": {
+          "transport_modes": "Leave empty to show all modes."
         }
       },
       "resrobot": {
@@ -37,67 +32,70 @@
         "description": "Configure origin and destination for Resrobot trips.",
         "data": {
           "origin_type": "Origin Type",
-          "origin": "Origin",
+          "origin": "Origin (Stop ID or coordinates)",
           "destination_type": "Destination Type",
-          "destination": "Destination",
-          "via": "Via",
-          "avoid": "Avoid",
+          "destination": "Destination (Stop ID or coordinates)",
+          "via": "Via (optional stop ID)",
+          "avoid": "Avoid (optional stop ID)",
           "max_walking_distance": "Maximum Walking Distance (meters)",
           "max_trip_duration": "Maximum Trip Duration (minutes, leave empty for no limit)",
+          "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)"
         },
-  "data_description": {}
+        "data_description": {
+          "transport_modes": "Leave empty to include all modes. Note: if set, walk and transfer legs will be excluded from results."
+        }
       },
       "sensor": {
         "title": "Configure Sensor",
         "description": "Configure the sensor for stop {stop_id} ({stop_name})",
         "data": {
           "sensor_type": "Sensor Type",
-          "resrobot_travel_search": "Resrobot Travel Search",
-          "origin_type": "Origin Type",
-          "destination_type": "Destination Type",
-          "stop_id": "Stop ID",
-          "site_id": "Site ID",
-          "line_number": "Line Number",
-          "transport_mode": "Transport Mode",
-          "coordinates": "Coordinates",
-          "origin": "Origin",
-          "destination": "Destination",
-          "via": "Via",
-          "avoid": "Avoid",
-          "max_walking_distance": "Maximum Walking Distance (meters)",
           "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
           "direction": "Destination Filter (substring; leave empty for all destinations)",
+          "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
           "update_condition": "Update Condition (template; render to 'true' to fetch)"
         },
-  "data_description": {}
+        "data_description": {
+          "transport_modes": "Leave empty to show all modes."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Stop Sensor",
+        "description": "Update the API key or stop ID for this sensor.",
+        "data": {
+          "api_key": "API Key",
+          "stop_id": "Stop ID"
+        },
+        "data_description": {}
+      },
+      "reconfigure_resrobot": {
+        "title": "Reconfigure Resrobot Travel Search",
+        "description": "Update the API key or trip endpoints for this sensor.",
+        "data": {
+          "api_key": "API Key",
+          "origin_type": "Origin Type",
+          "origin": "Origin (Stop ID or coordinates)",
+          "destination_type": "Destination Type",
+          "destination": "Destination (Stop ID or coordinates)"
+        },
+        "data_description": {}
       }
     },
     "error": {
       "cannot_connect": "Failed to connect to Trafiklab API",
-  "invalid_api_key": "Invalid API key",
-  "invalid_stop_id": "Invalid stop ID",
-  "invalid_coordinates": "Invalid coordinates format (lat,lon)",
+      "invalid_api_key": "Invalid API key",
+      "invalid_stop_id": "Invalid stop ID",
+      "invalid_coordinates": "Invalid coordinates format (lat,lon)",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
       "already_configured": "This sensor configuration is already configured"
     }
   },
-    "selector": {
-      "sensor_type": {
-        "options": {
-          "departure": "Departures from stop",
-          "arrival": "Arrivals to stop",
-          "resrobot_travel_search": "Resrobot Travel Search",
-          "stop_id": "Stop ID",
-          "coordinates": "Coordinates"
-        }
-      }
-    },
   "entity": {
     "sensor": {
       "next_departure": {
@@ -111,18 +109,64 @@
       }
     }
   },
+  "selector": {
+    "sensor_type": {
+      "name": "Sensor Type",
+      "options": {
+        "departure": "Departures",
+        "arrival": "Arrivals",
+        "resrobot_travel_search": "Resrobot Travel Search"
+      }
+    },
+    "origin_type": {
+      "name": "Location Type",
+      "options": {
+        "stop_id": "Stop ID",
+        "coordinates": "Coordinates (lat,lon)"
+      }
+    },
+    "transport_modes": {
+      "name": "Transport Mode(s)",
+      "options": {
+        "BUS": "Bus",
+        "METRO": "Metro",
+        "TRAIN": "Train",
+        "TRAM": "Tram",
+        "BOAT": "Boat / Ferry"
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {
-        "title": "Update Trafiklab Settings",
-        "description": "Adjust filters and timing for this sensor.",
+        "title": "Update Stop Sensor Settings",
+        "description": "Adjust filters and timing for this stop sensor.",
         "data": {
           "line_filter": "Line Filter (comma-separated, leave empty for all lines)",
           "direction": "Destination Filter (substring; leave empty for all destinations)",
-          "max_trip_duration": "Maximum Trip Duration (minutes, leave empty for no limit)",
+          "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
           "update_condition": "Update Condition (template; render to 'true' to fetch)"
+        },
+        "data_description": {
+          "transport_modes": "Leave empty to show all modes."
+        }
+      },
+      "init_resrobot": {
+        "title": "Update Resrobot Travel Search Settings",
+        "description": "Adjust filters and timing for this Resrobot sensor.",
+        "data": {
+          "via": "Via (optional stop ID)",
+          "avoid": "Avoid (optional stop ID)",
+          "max_walking_distance": "Maximum Walking Distance (meters)",
+          "max_trip_duration": "Maximum Trip Duration (minutes, leave empty for no limit)",
+          "transport_modes": "Transport Mode(s) (leave empty for all)",
+          "time_window": "Time Window (minutes ahead to search)",
+          "refresh_interval": "Data Refresh Interval (seconds)"
+        },
+        "data_description": {
+          "transport_modes": "Leave empty to include all modes. Note: if set, walk and transfer legs will be excluded from results."
         }
       }
     }

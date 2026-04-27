@@ -12,6 +12,12 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
+
 from .api import TrafikLabApiClient, TrafikLabApiError
 
 from .const import (
@@ -46,9 +52,46 @@ from .const import (
     CONF_AVOID,
     CONF_MAX_WALKING_DISTANCE,
     CONF_MAX_TRIP_DURATION,
+    CONF_TRANSPORT_MODES,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+_TRANSPORT_MODES_SELECTOR = SelectSelector(
+    SelectSelectorConfig(
+        options=["BUS", "METRO", "TRAIN", "TRAM", "BOAT"],
+        multiple=True,
+        mode=SelectSelectorMode.LIST,
+        translation_key="transport_modes",
+    )
+)
+
+_SENSOR_TYPE_SELECTOR = SelectSelector(
+    SelectSelectorConfig(
+        options=[SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL, SENSOR_TYPE_RESROBOT],
+        multiple=False,
+        mode=SelectSelectorMode.LIST,
+        translation_key="sensor_type",
+    )
+)
+
+_SENSOR_TYPE_DEP_ARR_SELECTOR = SelectSelector(
+    SelectSelectorConfig(
+        options=[SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL],
+        multiple=False,
+        mode=SelectSelectorMode.LIST,
+        translation_key="sensor_type",
+    )
+)
+
+_LOCATION_TYPE_SELECTOR = SelectSelector(
+    SelectSelectorConfig(
+        options=["stop_id", "coordinates"],
+        multiple=False,
+        mode=SelectSelectorMode.LIST,
+        translation_key="origin_type",
+    )
+)
 
 
 def _default_name_for_type(lang: str, sensor_type: str) -> str:
@@ -63,10 +106,7 @@ def _default_name_for_type(lang: str, sensor_type: str) -> str:
 
 STEP_SENSOR_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_SENSOR_TYPE, default=SENSOR_TYPE_DEPARTURE): vol.In({
-            SENSOR_TYPE_DEPARTURE,
-            SENSOR_TYPE_ARRIVAL,
-        }),
+        vol.Required(CONF_SENSOR_TYPE, default=SENSOR_TYPE_DEPARTURE): _SENSOR_TYPE_DEP_ARR_SELECTOR,
         vol.Optional(CONF_LINE_FILTER, default=""): str,
     # Direction is now a free text destination filter (substring match). Keep key name for backward compatibility.
     vol.Optional(CONF_DIRECTION, default=""): str,
@@ -78,6 +118,7 @@ STEP_SENSOR_DATA_SCHEMA = vol.Schema(
         ),
     # New: Optional Jinja template string to decide whether to perform update. When template renders to 'true' (case-insensitive), update is performed.
     vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
+        vol.Optional(CONF_TRANSPORT_MODES, default=[]): _TRANSPORT_MODES_SELECTOR,
     }
 )
 
@@ -144,11 +185,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         default_name = _default_name_for_type(lang, default_type)
         dynamic_schema = vol.Schema(
             {
-                vol.Required(CONF_SENSOR_TYPE, default=default_type): vol.In({
-                    SENSOR_TYPE_RESROBOT,
-                    SENSOR_TYPE_DEPARTURE,
-                    SENSOR_TYPE_ARRIVAL,
-                }),
+                vol.Required(CONF_SENSOR_TYPE, default=default_type): _SENSOR_TYPE_SELECTOR,
                 vol.Required(CONF_API_KEY): str,
                 vol.Optional(CONF_NAME, default=default_name): str,
             }
@@ -194,6 +231,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 options_data = {
                     CONF_LINE_FILTER: user_input.get(CONF_LINE_FILTER, ""),
                     CONF_DIRECTION: user_input.get(CONF_DIRECTION, ""),
+                    CONF_TRANSPORT_MODES: user_input.get(CONF_TRANSPORT_MODES, []),
                     CONF_TIME_WINDOW: user_input.get(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW),
                     CONF_REFRESH_INTERVAL: user_input.get(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     CONF_UPDATE_CONDITION: user_input.get(CONF_UPDATE_CONDITION, ""),
@@ -212,6 +250,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_STOP_ID): str,
                 vol.Optional(CONF_LINE_FILTER, default=""): str,
                 vol.Optional(CONF_DIRECTION, default=""): str,
+                vol.Optional(CONF_TRANSPORT_MODES, default=[]): _TRANSPORT_MODES_SELECTOR,
                 vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=1440)
                 ),
@@ -232,14 +271,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Define all required fields for Resrobot, including update frequency and time window
         # Keep options simple; labels are translated via step strings
         resrobot_schema = vol.Schema({
-            vol.Required(CONF_ORIGIN_TYPE, default="stop_id"): vol.In(["stop_id", "coordinates"]),
+            vol.Required(CONF_ORIGIN_TYPE, default="stop_id"): _LOCATION_TYPE_SELECTOR,
             vol.Required(CONF_ORIGIN, default=""): str,
-            vol.Required(CONF_DESTINATION_TYPE, default="stop_id"): vol.In(["stop_id", "coordinates"]),
+            vol.Required(CONF_DESTINATION_TYPE, default="stop_id"): _LOCATION_TYPE_SELECTOR,
             vol.Required(CONF_DESTINATION, default=""): str,
             vol.Optional(CONF_VIA, default=""): str,
             vol.Optional(CONF_AVOID, default=""): str,
             vol.Optional(CONF_MAX_WALKING_DISTANCE, default=1000): vol.All(vol.Coerce(int), vol.Range(min=0, max=10000)),
             vol.Optional(CONF_MAX_TRIP_DURATION, default=None): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))),
+            vol.Optional(CONF_TRANSPORT_MODES, default=[]): _TRANSPORT_MODES_SELECTOR,
             vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)),
             vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
         })
@@ -288,6 +328,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "avoid": avoid,
                     "max_walking_distance": max_walking_distance,
                     CONF_MAX_TRIP_DURATION: user_input.get(CONF_MAX_TRIP_DURATION),
+                    CONF_TRANSPORT_MODES: user_input.get(CONF_TRANSPORT_MODES, []),
                     "refresh_interval": refresh_interval,
                     "time_window": time_window,
                 }
@@ -324,6 +365,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             options_data = {
                 CONF_LINE_FILTER: user_input.get(CONF_LINE_FILTER, ""),
                 CONF_DIRECTION: user_input.get(CONF_DIRECTION, ""),
+                CONF_TRANSPORT_MODES: user_input.get(CONF_TRANSPORT_MODES, []),
                 CONF_TIME_WINDOW: user_input.get(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW),
                 CONF_REFRESH_INTERVAL: user_input.get(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL),
                 CONF_UPDATE_CONDITION: user_input.get(CONF_UPDATE_CONDITION, ""),
@@ -357,6 +399,95 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reconfiguration of an existing entry (change data fields)."""
+        entry = self._get_reconfigure_entry()
+        sensor_type = entry.data.get(CONF_SENSOR_TYPE)
+        if sensor_type == SENSOR_TYPE_RESROBOT:
+            return await self.async_step_reconfigure_resrobot(user_input)
+        return await self.async_step_reconfigure_departure_arrival(user_input)
+
+    async def async_step_reconfigure_departure_arrival(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Reconfigure API key and stop ID for a departure/arrival sensor."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            try:
+                await validate_input(self.hass, {
+                    CONF_API_KEY: user_input[CONF_API_KEY],
+                    CONF_STOP_ID: user_input[CONF_STOP_ID],
+                })
+            except InvalidApiKey:
+                errors["api_key"] = "invalid_api_key"
+            except InvalidStopId:
+                errors["stop_id"] = "invalid_stop_id"
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except Exception as err:
+                _LOGGER.exception("Unexpected exception during reconfigure validation: %s", err)
+                errors["base"] = "unknown"
+            else:
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data={**entry.data, **user_input},
+                )
+
+        schema = vol.Schema({
+            vol.Required(CONF_API_KEY, default=entry.data.get(CONF_API_KEY, "")): str,
+            vol.Required(CONF_STOP_ID, default=entry.data.get(CONF_STOP_ID, "")): str,
+        })
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=schema,
+            errors=errors,
+        )
+
+    async def async_step_reconfigure_resrobot(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Reconfigure API key and trip endpoints for a Resrobot sensor."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+
+        def valid_coords(val: str) -> bool:
+            try:
+                lat, lon = val.split(",")
+                float(lat)
+                float(lon)
+                return True
+            except Exception:
+                return False
+
+        if user_input is not None:
+            if user_input.get(CONF_ORIGIN_TYPE) == "coordinates" and not valid_coords(user_input.get(CONF_ORIGIN, "")):
+                errors[CONF_ORIGIN] = "invalid_coordinates"
+            if user_input.get(CONF_DESTINATION_TYPE) == "coordinates" and not valid_coords(user_input.get(CONF_DESTINATION, "")):
+                errors[CONF_DESTINATION] = "invalid_coordinates"
+
+            if not errors:
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data={**entry.data, **user_input},
+                )
+
+        schema = vol.Schema({
+            vol.Required(CONF_API_KEY, default=entry.data.get(CONF_API_KEY, "")): str,
+            vol.Required(CONF_ORIGIN_TYPE, default=entry.data.get(CONF_ORIGIN_TYPE, "stop_id")): _LOCATION_TYPE_SELECTOR,
+            vol.Required(CONF_ORIGIN, default=entry.data.get(CONF_ORIGIN, "")): str,
+            vol.Required(CONF_DESTINATION_TYPE, default=entry.data.get(CONF_DESTINATION_TYPE, "stop_id")): _LOCATION_TYPE_SELECTOR,
+            vol.Required(CONF_DESTINATION, default=entry.data.get(CONF_DESTINATION, "")): str,
+        })
+        return self.async_show_form(
+            step_id="reconfigure_resrobot",
+            data_schema=schema,
+            errors=errors,
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):  # type: ignore[override]
@@ -374,42 +505,55 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:  # noqa: D401
         is_resrobot = self._entry.data.get(CONF_SENSOR_TYPE) == SENSOR_TYPE_RESROBOT
 
+        if is_resrobot:
+            return await self.async_step_init_resrobot(user_input)
+
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        if is_resrobot:
-            schema = vol.Schema({
-                vol.Optional(CONF_VIA, default=""): str,
-                vol.Optional(CONF_AVOID, default=""): str,
-                vol.Optional(CONF_MAX_WALKING_DISTANCE, default=1000): vol.All(
-                    vol.Coerce(int), vol.Range(min=0, max=10000)
-                ),
-                vol.Optional(CONF_MAX_TRIP_DURATION, default=None): vol.Any(
-                    None, vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))
-                ),
-                vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
-                    vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
-                ),
-                vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=1440)
-                ),
-            })
-        else:
-            schema = vol.Schema({
-                vol.Optional(CONF_LINE_FILTER, default=""): str,
-                vol.Optional(CONF_DIRECTION, default=""): str,
-                vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=1440)
-                ),
-                vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
-                    vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
-                ),
-                vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
-            })
-
+        schema = vol.Schema({
+            vol.Optional(CONF_LINE_FILTER, default=""): str,
+            vol.Optional(CONF_DIRECTION, default=""): str,
+            vol.Optional(CONF_TRANSPORT_MODES, default=[]): _TRANSPORT_MODES_SELECTOR,
+            vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=1440)
+            ),
+            vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
+                vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
+            ),
+            vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
+        })
         current_values = {**self._entry.data, **self._entry.options}
         return self.async_show_form(
             step_id="init",
+            data_schema=self.add_suggested_values_to_schema(schema, current_values),
+        )
+
+    async def async_step_init_resrobot(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Options step for Resrobot Travel Search sensors."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        schema = vol.Schema({
+            vol.Optional(CONF_VIA, default=""): str,
+            vol.Optional(CONF_AVOID, default=""): str,
+            vol.Optional(CONF_MAX_WALKING_DISTANCE, default=1000): vol.All(
+                vol.Coerce(int), vol.Range(min=0, max=10000)
+            ),
+            vol.Optional(CONF_MAX_TRIP_DURATION, default=None): vol.Any(
+                None, vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))
+            ),
+            vol.Optional(CONF_TRANSPORT_MODES, default=[]): _TRANSPORT_MODES_SELECTOR,
+            vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
+                vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
+            ),
+            vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=1440)
+            ),
+        })
+        current_values = {**self._entry.data, **self._entry.options}
+        return self.async_show_form(
+            step_id="init_resrobot",
             data_schema=self.add_suggested_values_to_schema(schema, current_values),
         )
 
