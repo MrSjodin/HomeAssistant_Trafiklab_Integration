@@ -6,7 +6,7 @@ pytest-cov>=4.0.0
 
 # Code quality
 black>=22.0.0
-isort>=5.10.0
+isort>=8.0.1
 flake8>=5.0.0
 mypy>=0.991
 
