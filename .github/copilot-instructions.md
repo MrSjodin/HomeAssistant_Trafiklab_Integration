@@ -61,6 +61,26 @@ New optional config keys must use `.get(KEY)` returning `None` when absent so ol
 ### Translations
 Both `translations/en.json` and `translations/sv.json` must be updated together whenever a new config/options field is added.
 
+#### Selector field labels — critical rule
+HA resolves the **label** for a field that uses a `SelectSelector` (or any selector with `translation_key`) from `selector.{translation_key}.name`, **not** from the step's `data.{field_key}` block. The `data` block label is only used for plain `str`/`int`/`bool` fields.
+
+Rule: every `SelectSelector(..., translation_key="foo")` must have a matching entry in **both** translation files:
+```json
+"selector": {
+  "foo": {
+    "name": "Human-readable label",
+    "options": { "value1": "Label 1", "value2": "Label 2" }
+  }
+}
+```
+Without `name`, the field heading renders untranslated. The `options` block translates the individual checkbox/radio values.
+
+#### Reconfigure steps
+`async_step_reconfigure` must exist on `ConfigFlow` for the HA "Reconfigure" menu item to work. It should delegate to typed sub-steps (`reconfigure` for departure/arrival, `reconfigure_resrobot` for Resrobot). Each sub-step needs its own entry under `config.step` in the translation files.
+
+#### Options flow
+`OptionsFlowHandler` uses separate steps (`init` for departure/arrival, `init_resrobot` for Resrobot) so each type gets its own title, description, and field set. Both steps need entries under `options.step` in the translation files.
+
 ## Build & Test
 
 ```bash
