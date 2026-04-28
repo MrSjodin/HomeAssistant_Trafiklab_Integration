@@ -555,7 +555,11 @@ async def test_resrobot_multi_mode_merges_and_deduplicates_trips(hass: HomeAssis
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-    state = hass.states.get("sensor.trafiklab_travel_multimerge")
+    from homeassistant.helpers import entity_registry as er
+    ent_reg = er.async_get(hass)
+    entity_id = ent_reg.async_get_entity_id("sensor", "trafiklab", f"{entry.entry_id}_resrobot_travel")
+    assert entity_id is not None
+    state = hass.states.get(entity_id)
     assert state is not None
     trips = state.attributes.get("trips", [])
     # Both Metro and Bus trips must appear in the merged result
