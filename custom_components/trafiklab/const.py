@@ -54,10 +54,10 @@ RESROBOT_TRAVEL_SEARCH_ENDPOINT: Final = "/trip"
 # Transport modes
 TRANSPORT_MODES = {
     "bus": "BUS",
-    "metro": "METRO", 
+    "metro": "METRO",
     "train": "TRAIN",
     "tram": "TRAM",
-    "ship": "SHIP"
+    "boat": "SHIP"
 }
 
 # Resrobot products bitmask per transport mode (request-side filtering)
