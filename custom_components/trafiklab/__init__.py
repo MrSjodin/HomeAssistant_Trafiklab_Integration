@@ -51,11 +51,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("[Trafiklab] Ensuring services registered during entry setup")
     async_setup_services(hass)
 
-    # Perform first data fetch before adding entities so that
-    # CoordinatorEntity.async_add_listener does not trigger a second refresh.
-    await coordinator.async_config_entry_first_refresh()
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Schedule initial data fetch without blocking setup
+    hass.async_create_task(
+        coordinator.async_config_entry_first_refresh()
+    )
 
     # Listen for options updates
     entry.async_on_unload(entry.add_update_listener(_update_listener))
