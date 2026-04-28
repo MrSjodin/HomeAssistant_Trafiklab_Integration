@@ -111,7 +111,6 @@
   },
   "selector": {
     "sensor_type": {
-      "name": "Sensor Type",
       "options": {
         "departure": "Departures",
         "arrival": "Arrivals",
@@ -119,14 +118,12 @@
       }
     },
     "origin_type": {
-      "name": "Location Type",
       "options": {
         "stop_id": "Stop ID",
         "coordinates": "Coordinates (lat,lon)"
       }
     },
     "transport_modes": {
-      "name": "Transport Mode(s)",
       "options": {
         "bus": "Bus",
         "metro": "Metro",
