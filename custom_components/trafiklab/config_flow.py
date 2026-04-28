@@ -524,6 +524,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
         })
         current_values = {**self._entry.data, **self._entry.options}
+        # Normalize transport_modes: old entries may lack the key or have None stored,
+        # which causes add_suggested_values_to_schema to set default=None and the
+        # SelectSelector to raise "value must be one of [...]" on submission.
+        if not isinstance(current_values.get(CONF_TRANSPORT_MODES), list):
+            current_values[CONF_TRANSPORT_MODES] = []
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(schema, current_values),
@@ -552,6 +557,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             ),
         })
         current_values = {**self._entry.data, **self._entry.options}
+        # Normalize transport_modes: old entries may lack the key or have None stored,
+        # which causes add_suggested_values_to_schema to set default=None and the
+        # SelectSelector to raise "value must be one of [...]" on submission.
+        if not isinstance(current_values.get(CONF_TRANSPORT_MODES), list):
+            current_values[CONF_TRANSPORT_MODES] = []
         return self.async_show_form(
             step_id="init_resrobot",
             data_schema=self.add_suggested_values_to_schema(schema, current_values),
