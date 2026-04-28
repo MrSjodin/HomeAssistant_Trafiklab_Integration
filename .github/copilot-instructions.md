@@ -61,19 +61,23 @@ New optional config keys must use `.get(KEY)` returning `None` when absent so ol
 ### Translations
 Both `translations/en.json` and `translations/sv.json` must be updated together whenever a new config/options field is added.
 
-#### Selector field labels — critical rule
-HA resolves the **label** for a field that uses a `SelectSelector` (or any selector with `translation_key`) from `selector.{translation_key}.name`, **not** from the step's `data.{field_key}` block. The `data` block label is only used for plain `str`/`int`/`bool` fields.
+#### Selector field labels — critical rules
+HA resolves the **label** for a field that uses a `SelectSelector` (or any selector with `translation_key`) from the step's `data.{field_key}` block just like plain fields — **not** from a `name` key inside the `selector` entry.
 
-Rule: every `SelectSelector(..., translation_key="foo")` must have a matching entry in **both** translation files:
+**`name` is FORBIDDEN inside `selector` entries.** hassfest will reject the translation file with `extra keys not allowed @ data['selector']['foo']['name']`.
+
+Rule: every `SelectSelector(..., translation_key="foo")` must have a matching entry in **both** translation files with **only** the `options` block:
 ```json
 "selector": {
   "foo": {
-    "name": "Human-readable label",
     "options": { "value1": "Label 1", "value2": "Label 2" }
   }
 }
 ```
-Without `name`, the field heading renders untranslated. The `options` block translates the individual checkbox/radio values.
+The `options` block translates the individual checkbox/radio values.
+
+#### Selector option key casing
+Selector option keys **must match** `[a-z0-9_-]+` (lowercase). hassfest rejects uppercase keys such as `"BUS"` or `"METRO"` with `Invalid translation key`. Keep all option values and their translation keys lowercase throughout `config_flow.py`, `const.py`, and both translation files.
 
 #### Reconfigure steps
 `async_step_reconfigure` must exist on `ConfigFlow` for the HA "Reconfigure" menu item to work. It should delegate to typed sub-steps (`reconfigure` for departure/arrival, `reconfigure_resrobot` for Resrobot). Each sub-step needs its own entry under `config.step` in the translation files.
@@ -97,6 +101,17 @@ Tests run on **Ubuntu / Python 3.11** in CI (`.github/workflows/validate.yaml`).
 - Mock API calls with `unittest.mock.patch` on `TrafikLabApiClient` methods
 - Resrobot test fixtures use `date="2099-12-31"` so `native_value` is `None` (beyond time window) while `extra_state_attributes["trips"]` is still populated — assert on attributes, not state value
 - Shared fixtures live in `tests/components/trafiklab/conftest.py`
+- To look up a sensor's `entity_id` in tests, use the entity registry rather than guessing the slug: `ent_reg.async_get_entity_id("sensor", "trafiklab", f"{entry.entry_id}_<unique_suffix>")`
+
+#### Testing API call counts
+HA's `CoordinatorEntity.async_added_to_hass` calls `async_request_refresh()` when coordinator data is `None` (entity subscribes before the first refresh completes). Combined with the entry-setup first refresh this produces **more than one** coordinator cycle during `async_setup`. Tests that count API calls must therefore:
+1. Complete entry setup inside the `with _patch(...):` block and await `hass.async_block_till_done()`
+2. Call `mock_api.reset_mock()` to discard setup-phase calls
+3. Retrieve `coordinator = hass.data[DOMAIN][entry.entry_id]`
+4. Call `await coordinator.async_refresh()` + `await hass.async_block_till_done()` for exactly one controlled cycle
+5. Assert `mock_api.call_count` against the single-cycle expectation
+
+Do **not** assert call counts directly after `async_block_till_done()` without the reset; setup mechanics are not what those tests are measuring.
 
 ## Resrobot Trip Normalisation
 
