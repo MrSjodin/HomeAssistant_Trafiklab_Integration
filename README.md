@@ -27,7 +27,8 @@ There's also a couple of Lovelace dashboard cards to use as companions to this i
 - **Destination filtering**: Filter by (substring) text match of destination(s) at a stop (useful for busy stops), per sensor
 - **Configurable time window**: Set how many minutes ahead to search (1-1440 minutes), per sensor
 - **Maximum trip duration filter (new in v0.7.0)**: For Travel Search sensors, exclude trips whose total duration exceeds a configurable limit (1-1440 minutes). Leave empty for no limit. Backward compatible — existing config entries without this setting are unaffected.
-- **Multiple transport modes**: Support for buses, trains, metro, trams, and ships
+- **Transport mode filtering (new in v0.8.0)**: Filter results by one or more transport categories — Bus, Metro, Train, Tram, or Boat/Ferry — for both Realtime and Travel Search sensors. Leave empty to include all modes.
+- **Multiple transport modes**: Support for buses, trains, metro, trams, and boats/ferries
 - **Flexible sensor configuration**: Create separate sensors for departures and arrivals
 - **Stop lookup service**: Search for the stop ID by it's name using Home Assistant service
 - **Config flow**: Easy setup through the Home Assistant UI with step-by-step configuration
@@ -70,11 +71,13 @@ Note about Resrobot: Trip planning uses Resrobot Travel Search which requires it
    - Departures/Arrivals:
      - Area/Stop ID (use the Stop Lookup service if needed)
      - Optional line filter and destination filter
+     - Optional transport mode filter (Bus, Metro, Train, Tram, Boat/Ferry — leave empty for all)
      - Time window and refresh interval
      - Optional Update Condition (template)
    - Travel Search:
      - Origin and Destination: each can be a Stop ID or coordinates "lat,lon" (select type for each)
      - Optional via/avoid Stop IDs and maximum walking distance
+     - Optional transport mode filter (Bus, Metro, Train, Tram, Boat/Ferry — leave empty for all)
      - Time window and refresh interval
      - Optional maximum trip duration (in minutes) — trips longer than this are excluded from results
 5. Finish to create the sensor.
@@ -235,6 +238,29 @@ The `upcoming` attribute contains an array of up to 10 upcoming departures/arriv
 
 **Destination Filter Explanation:**
 You can enter any (part of) destination text (case-insensitive). Example: entering `central` will match destinations like "Stockholm Central" or "Centralstationen". Leave empty for all destinations.
+
+**Transport Mode Filter Explanation:**
+Select one or more transport categories to restrict which departures, arrivals, or trip legs are shown. Available modes:
+
+| Mode | Covers |
+|---|---|
+| Bus | All bus services |
+| Metro | Underground/subway (tunnelbana) |
+| Train | Regional and commuter trains |
+| Tram | Trams and light rail |
+| Boat / Ferry | Ferries and boat services |
+
+Leave the selection empty to include all modes (default behaviour, fully backward compatible with entries created before this setting existed).
+
+> **Note for Travel Search sensors:** when a transport mode filter is set, legs that are not public transport (walk segments, transfer legs) are excluded from the displayed results, since they have no associated mode.
+
+```yaml
+# Example: only show bus and tram departures
+options:
+  transport_modes:
+    - bus
+    - tram
+```
 
 **Update Condition (Template) Explanation:**
 You can provide a Home Assistant template which controls whether the integration performs an API request on each scheduled update. The template is evaluated in Home Assistant; if it renders to the literal string `true` (case-insensitive), the update proceeds. Otherwise, the API call is skipped and the last known data remains.
@@ -494,7 +520,7 @@ The following operators are currently represented in the API:
 - Västmanland
 - Dalatrafik
 - X-trafik
-- Din Tur (Västernorrland)
+- Din Tur - Västernorrland
 
 ### Static (timetable) data
 
@@ -509,25 +535,31 @@ The following operators are currently represented in the API:
 - Falcks Omnibus AB
 - Flixbus
 - Härjedalingen
+- Kiruna Buss
+- Kombardo Expressen
 - Lennakatten
 - Luleå Lokaltrafik
 - Masexpressen
 - Mälartåg ersättningstrafik
+- Nikkaluoktaexpressen
 - Norrtåg ersättningsstrafik (VR Sverige)
 - Ressel Rederi
 - Roslagens sjötrafik
+- Silverlinjen
 - SJ
 - SJ Norge
 - Sjöstadstrafiken (Stockholm Stad)
 - Skellefteåbuss
 - Snälltåget
+- Stavsnäs båttaxi
 - Strömma Turism & Sjöfart AB
-- TiB ersättningstrafik (VR Sverige)
 - TJF Smalspåret
 - Trosabussen
 - Tågab
 - Uddevalla Skärgårdsbåtar AB
 - VR
+- Vy Bus4You
+- Vy Flygbussarna
 - Vy Norge
 - Vy Tåg AB
 - Vy Värmlandstrafik
