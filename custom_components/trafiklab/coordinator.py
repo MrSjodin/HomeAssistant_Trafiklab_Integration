@@ -172,16 +172,9 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
                 if not data:
                     _LOGGER.warning("No data received from API")
                     raise UpdateFailed("No data received from API")
-                # Validate API response structure
                 if not isinstance(data, dict):
                     _LOGGER.error("Invalid API response format: expected dict, got %s", type(data))
                     raise UpdateFailed("Invalid API response format")
-                # Check for required top-level fields
-                required_fields = ["timestamp", "query", "stops"]
-                missing_fields = [field for field in required_fields if field not in data]
-                if missing_fields:
-                    _LOGGER.error("Missing required fields in API response: %s", missing_fields)
-                    raise UpdateFailed(f"Invalid API response: missing fields {missing_fields}")
                 _LOGGER.debug("API response keys: %s", list(data.keys()))
                 # Check if we have the expected data structure at the top level
                 if sensor_type == SENSOR_TYPE_ARRIVAL and "arrivals" in data:
