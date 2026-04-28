@@ -3,5 +3,6 @@
   "content_in_root": false,
   "homeassistant": "2023.1.0",
   "zip_release": true,
+  "filename": "dists/trafiklab-latest.zip",
   "country": ["NO", "SE", "DK", "FI"]
 }
