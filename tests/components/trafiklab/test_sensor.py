@@ -443,6 +443,14 @@ async def test_resrobot_multi_mode_makes_separate_api_calls(hass: HomeAssistant,
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
+        # Reset after setup (HA may trigger more than one refresh during entry setup)
+        mock_api.reset_mock()
+
+        # Trigger exactly one coordinator refresh and count the resulting API calls
+        coordinator = hass.data[DOMAIN][entry.entry_id]
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
     # Two modes → two separate API calls, one with products=32 (METRO) and one with products=22 (TRAIN)
     assert mock_api.call_count == 2
     products_passed = {
@@ -475,6 +483,14 @@ async def test_resrobot_single_mode_makes_one_api_call(hass: HomeAssistant, mock
     mock_api = AsyncMock(return_value=mock_resrobot_response)
     with _patch("custom_components.trafiklab.api.TrafikLabApiClient.get_resrobot_travel_search", mock_api):
         assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        # Reset after setup (HA may trigger more than one refresh during entry setup)
+        mock_api.reset_mock()
+
+        # Trigger exactly one coordinator refresh and count the resulting API calls
+        coordinator = hass.data[DOMAIN][entry.entry_id]
+        await coordinator.async_refresh()
         await hass.async_block_till_done()
 
     assert mock_api.call_count == 1
