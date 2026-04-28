@@ -7,7 +7,7 @@
         "data": {
           "sensor_type": "Sensor Type",
           "api_key": "API Key",
-          "name": "Name"
+          "name": "Custom sensor name"
         },
         "data_description": {}
       },

@@ -7,7 +7,7 @@
         "data": {
           "sensor_type": "Sensortyp",
           "api_key": "API-nyckel",
-          "name": "Namn"
+          "name": "Eget namn på sensorn"
         },
         "data_description": {}
       },
