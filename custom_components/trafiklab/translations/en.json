@@ -96,6 +96,19 @@
       "already_configured": "This sensor configuration is already configured"
     }
   },
+  "entity": {
+    "sensor": {
+      "next_departure": {
+        "name": "Upcoming Departures"
+      },
+      "next_arrival": {
+        "name": "Upcoming Arrivals"
+      },
+      "resrobot_travel": {
+        "name": "Travel Search"
+      }
+    }
+  },
   "selector": {
     "sensor_type": {
       "options": {
