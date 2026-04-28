@@ -149,7 +149,7 @@ async def test_flow_departure_arrival_transport_modes_stored_in_options(hass: Ho
                 "stop_id": "740098000",
                 "line_filter": "",
                 "direction": "",
-                "transport_modes": ["BUS"],
+                "transport_modes": ["bus"],
                 "time_window": 60,
                 "refresh_interval": 300,
                 "update_condition": "",
@@ -157,7 +157,7 @@ async def test_flow_departure_arrival_transport_modes_stored_in_options(hass: Ho
         )
 
     assert result["type"] == "create_entry"
-    assert result["options"]["transport_modes"] == ["BUS"]
+    assert result["options"]["transport_modes"] == ["bus"]
 
 
 @pytest.mark.asyncio
@@ -180,14 +180,14 @@ async def test_flow_resrobot_transport_modes_stored_in_options(hass: HomeAssista
             "via": "",
             "avoid": "",
             "max_walking_distance": 1000,
-            "transport_modes": ["TRAIN", "METRO"],
+            "transport_modes": ["train", "metro"],
             "refresh_interval": 300,
             "time_window": 60,
         },
     )
 
     assert result["type"] == "create_entry"
-    assert set(result["options"]["transport_modes"]) == {"TRAIN", "METRO"}
+    assert set(result["options"]["transport_modes"]) == {"train", "metro"}
 
 
 @pytest.mark.asyncio
