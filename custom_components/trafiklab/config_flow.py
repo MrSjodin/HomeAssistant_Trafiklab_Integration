@@ -59,7 +59,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _TRANSPORT_MODES_SELECTOR = SelectSelector(
     SelectSelectorConfig(
-        options=["BUS", "METRO", "TRAIN", "TRAM", "BOAT"],
+        options=["bus", "metro", "train", "tram", "boat"],
         multiple=True,
         mode=SelectSelectorMode.LIST,
         translation_key="transport_modes",

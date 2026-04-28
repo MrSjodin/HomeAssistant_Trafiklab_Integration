@@ -66,11 +66,11 @@ TRANSPORT_MODES = {
 # TRAIN = 2 (high-speed / Arlanda Express) + 4 (regional / IC) + 16 (local trains) = 22
 # METRO = 32, TRAM = 64, BOAT = 256 (ferries)
 RESROBOT_PRODUCTS_MAP: dict[str, int] = {
-    "BUS": 136,
-    "TRAIN": 22,
-    "METRO": 32,
-    "TRAM": 64,
-    "BOAT": 256,
+    "bus": 136,
+    "train": 22,
+    "metro": 32,
+    "tram": 64,
+    "boat": 256,
 }
 
 # Service names

@@ -128,11 +128,11 @@
     "transport_modes": {
       "name": "Transportmedel",
       "options": {
-        "BUS": "Buss",
-        "METRO": "Tunnelbana",
-        "TRAIN": "Tåg",
-        "TRAM": "Spårvagn",
-        "BOAT": "Båt / Färja"
+        "bus": "Buss",
+        "metro": "Tunnelbana",
+        "train": "Tåg",
+        "tram": "Spårvagn",
+        "boat": "Båt / Färja"
       }
     }
   },

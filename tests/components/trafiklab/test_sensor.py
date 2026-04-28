@@ -340,7 +340,7 @@ async def test_departure_sensor_filters_by_transport_mode(hass: HomeAssistant) -
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={"api_key": "key", "stop_id": "740098000", "name": "ModeTest", "sensor_type": "departure"},
-        options={"transport_modes": ["BUS"], "time_window": 120, "refresh_interval": 300},
+        options={"transport_modes": ["bus"], "time_window": 120, "refresh_interval": 300},
         unique_id="mode_filter_bus",
     )
     entry.add_to_hass(hass)
@@ -433,7 +433,7 @@ async def test_resrobot_multi_mode_makes_separate_api_calls(hass: HomeAssistant,
             "destination_type": "stop_id",
             "destination": "740000002",
         },
-        options={"time_window": 120, "refresh_interval": 300, "transport_modes": ["METRO", "TRAIN"]},
+        options={"time_window": 120, "refresh_interval": 300, "transport_modes": ["metro", "train"]},
         unique_id="resrobot_products_test",
     )
     entry.add_to_hass(hass)
@@ -467,7 +467,7 @@ async def test_resrobot_single_mode_makes_one_api_call(hass: HomeAssistant, mock
             "destination_type": "stop_id",
             "destination": "740000002",
         },
-        options={"time_window": 120, "refresh_interval": 300, "transport_modes": ["BUS"]},
+        options={"time_window": 120, "refresh_interval": 300, "transport_modes": ["bus"]},
         unique_id="resrobot_single_mode_test",
     )
     entry.add_to_hass(hass)
