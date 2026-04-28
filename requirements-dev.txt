@@ -8,7 +8,7 @@ pytest-cov>=4.0.0
 black>=22.0.0
 isort>=8.0.1
 flake8>=5.0.0
-mypy>=0.991
+mypy>=1.20.2
 
 # Home Assistant
 homeassistant>=2023.1.0
