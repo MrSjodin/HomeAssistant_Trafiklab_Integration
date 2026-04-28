@@ -543,7 +543,7 @@ async def test_resrobot_multi_mode_merges_and_deduplicates_trips(hass: HomeAssis
             "destination_type": "stop_id",
             "destination": "740000002",
         },
-        options={"time_window": 99999, "refresh_interval": 300, "transport_modes": ["METRO", "BUS"]},
+        options={"time_window": 99999, "refresh_interval": 300, "transport_modes": ["metro", "bus"]},
         unique_id="resrobot_merge_test",
     )
     entry.add_to_hass(hass)
