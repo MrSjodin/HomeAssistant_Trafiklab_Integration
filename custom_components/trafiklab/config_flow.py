@@ -32,7 +32,6 @@ from .const import (
     CONF_TIME_WINDOW,
     CONF_REFRESH_INTERVAL,
     CONF_UPDATE_CONDITION,
-    DEFAULT_NAME,
     DEFAULT_TIME_WINDOW,
     DEFAULT_SCAN_INTERVAL,
     MINIMUM_SCAN_INTERVAL,
@@ -94,16 +93,6 @@ _LOCATION_TYPE_SELECTOR = SelectSelector(
 )
 
 
-def _default_name_for_type(lang: str, sensor_type: str) -> str:
-    lang = (lang or "en").lower()
-    is_sv = lang.startswith("sv")
-    if sensor_type == SENSOR_TYPE_DEPARTURE:
-        return "Avgångar" if is_sv else "Departures"
-    if sensor_type == SENSOR_TYPE_ARRIVAL:
-        return "Ankomster" if is_sv else "Arrivals"
-    # SENSOR_TYPE_RESROBOT
-    return "Resesökning" if is_sv else "Travel Search"
-
 STEP_SENSOR_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_SENSOR_TYPE, default=SENSOR_TYPE_DEPARTURE): _SENSOR_TYPE_DEP_ARR_SELECTOR,
@@ -148,7 +137,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if CONF_STOP_ID in user_input and CONF_API_KEY in user_input and CONF_SENSOR_TYPE not in user_input:
                     self._api_key = user_input[CONF_API_KEY]
                     self._stop_id = user_input[CONF_STOP_ID]
-                    self._name = user_input.get(CONF_NAME, DEFAULT_NAME)
+                    self._name = ""
                     try:
                         await validate_input(self.hass, {
                             CONF_API_KEY: self._api_key,
@@ -170,24 +159,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     # New path: choose sensor type first
                     self._sensor_type = user_input[CONF_SENSOR_TYPE]
                     self._api_key = user_input[CONF_API_KEY]
-                    # Use user-provided name or a default based on type + language
-                    default_name = _default_name_for_type(getattr(self.hass.config, "language", "en"), self._sensor_type)
-                    self._name = (user_input.get(CONF_NAME) or default_name)
+                    self._name = user_input.get(CONF_NAME, "")
                     # Next step depends on sensor type
                     if self._sensor_type in [SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL]:
                         return await self.async_step_departure_arrival()
                     elif self._sensor_type == SENSOR_TYPE_RESROBOT:
                         return await self.async_step_resrobot()
 
-        # Show initial form with dynamic default name based on default sensor type
-        default_type = SENSOR_TYPE_RESROBOT
-        lang = getattr(self.hass.config, "language", "en")
-        default_name = _default_name_for_type(lang, default_type)
+        # Show initial form
         dynamic_schema = vol.Schema(
             {
-                vol.Required(CONF_SENSOR_TYPE, default=default_type): _SENSOR_TYPE_SELECTOR,
+                vol.Required(CONF_SENSOR_TYPE, default=SENSOR_TYPE_RESROBOT): _SENSOR_TYPE_SELECTOR,
                 vol.Required(CONF_API_KEY): str,
-                vol.Optional(CONF_NAME, default=default_name): str,
+                vol.Optional(CONF_NAME, default=""): str,
             }
         )
 
@@ -240,7 +224,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
                 sensor_type_name = "Departures" if self._sensor_type == SENSOR_TYPE_DEPARTURE else "Arrivals"
-                title = f"{self._name} {sensor_type_name}"
+                title = f"{self._name} {sensor_type_name}".strip()
                 return self.async_create_entry(title=title, data=base_data, options=options_data)
 
         # Show form for Departure/Arrival sensor config
@@ -336,7 +320,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 unique_id = f"resrobot_{origin}_{destination}"
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
-                title = f"{self._name} Resrobot Travel Search"
+                title = f"{self._name} Resrobot Travel Search".strip()
                 return self.async_create_entry(title=title, data=base_data, options=options_data)
 
         # Show form for Resrobot Travel Search config
@@ -383,7 +367,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Create title with sensor details
             sensor_type_name = "Departures" if user_input[CONF_SENSOR_TYPE] == SENSOR_TYPE_DEPARTURE else "Arrivals"
-            title = f"{self._name} {sensor_type_name}"
+            title = f"{self._name} {sensor_type_name}".strip()
             if user_input.get(CONF_LINE_FILTER):
                 title += f" (Lines: {user_input[CONF_LINE_FILTER]})"
 
@@ -616,4 +600,4 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         await client.close()
 
     # Title used by tests when patched; we mirror behavior.
-    return {"title": data.get(CONF_NAME, DEFAULT_NAME)}
+    return {"title": data.get(CONF_NAME, "")}

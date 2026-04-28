@@ -96,19 +96,6 @@
       "already_configured": "Denna sensorkonfiguration är redan konfigurerad"
     }
   },
-  "entity": {
-    "sensor": {
-      "next_departure": {
-        "name": "Kommande Avgångar"
-      },
-      "next_arrival": {
-        "name": "Kommande Ankomster"
-      },
-      "resrobot_travel": {
-        "name": "Resesökning"
-      }
-    }
-  },
   "selector": {
     "sensor_type": {
       "options": {
