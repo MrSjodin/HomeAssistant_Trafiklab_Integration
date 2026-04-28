@@ -25,6 +25,7 @@ CONF_VIA: Final = "via"
 CONF_AVOID: Final = "avoid"
 CONF_MAX_WALKING_DISTANCE: Final = "max_walking_distance"
 CONF_MAX_TRIP_DURATION: Final = "max_trip_duration"
+CONF_TRANSPORT_MODES: Final = "transport_modes"
 
 
 # Sensor types
@@ -53,10 +54,23 @@ RESROBOT_TRAVEL_SEARCH_ENDPOINT: Final = "/trip"
 # Transport modes
 TRANSPORT_MODES = {
     "bus": "BUS",
-    "metro": "METRO", 
+    "metro": "METRO",
     "train": "TRAIN",
     "tram": "TRAM",
-    "ship": "SHIP"
+    "boat": "SHIP"
+}
+
+# Resrobot products bitmask per transport mode (request-side filtering)
+# Values are additive bitmasks as documented at trafiklab.se/api/our-apis/resrobot-v21/common/
+# BUS = 128 (local buses) + 8 (express buses / Flygbussar) = 136
+# TRAIN = 2 (high-speed / Arlanda Express) + 4 (regional / IC) + 16 (local trains) = 22
+# METRO = 32, TRAM = 64, BOAT = 256 (ferries)
+RESROBOT_PRODUCTS_MAP: dict[str, int] = {
+    "bus": 136,
+    "train": 22,
+    "metro": 32,
+    "tram": 64,
+    "boat": 256,
 }
 
 # Service names

@@ -5,20 +5,11 @@
         "title": "Trafiklab",
         "description": "Konfigurera din Trafiklab-integration för att få kollektivtrafikinformation.",
         "data": {
-          "api_key": "Din API-nyckel",
-          "stop_id": "Hållplats-ID",
-          "site_id": "Plats-ID",
-          "line_number": "Linjenummer",
-          "transport_mode": "Transportmedel",
-          "name": "Namn",
-          "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
-          "direction": "Riktning (destinationsfilter)",
           "sensor_type": "Sensortyp",
-          "time_window": "Tidsfönster (minuter framåt att söka)",
-          "refresh_interval": "Datauppdateringsintervall (sekunder)",
-          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
+          "api_key": "API-nyckel",
+          "name": "Eget namn på sensorn"
         },
-  "data_description": {}
+        "data_description": {}
       },
       "departure_arrival": {
         "title": "Konfigurera hållplatssensor",
@@ -27,9 +18,13 @@
           "stop_id": "Hållplats-ID",
           "line_filter": "Linjefilter (kommaseparerade; tomt för alla linjer)",
           "direction": "Destinationsfilter (textdel; tomt för alla destinationer)",
+          "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
           "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
+        },
+        "data_description": {
+          "transport_modes": "Lämna tomt för att visa alla transportmedel."
         }
       },
       "resrobot": {
@@ -37,43 +32,57 @@
         "description": "Konfigurera ursprung och destination för Resrobot-resor.",
         "data": {
           "origin_type": "Ursprungstyp",
-          "origin": "Ursprung",
+          "origin": "Ursprung (Hållplats-ID eller koordinater)",
           "destination_type": "Destinationstyp",
-          "destination": "Destination",
-          "via": "Via",
-          "avoid": "Undvik",
+          "destination": "Destination (Hållplats-ID eller koordinater)",
+          "via": "Via (valfritt hållplats-ID)",
+          "avoid": "Undvik (valfritt hållplats-ID)",
           "max_walking_distance": "Maximalt gångavstånd (meter)",
           "max_trip_duration": "Maximal resetid (minuter, lämna tomt för ingen gräns)",
+          "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)"
         },
-  "data_description": {}
+        "data_description": {
+          "transport_modes": "Lämna tomt för att inkludera alla transportmedel. OBS: Om valt exkluderas gång- och bytessträckor från resultaten."
+        }
       },
       "sensor": {
         "title": "Konfigurera sensor",
         "description": "Konfigurera sensorn för hållplats {stop_id} ({stop_name})",
         "data": {
           "sensor_type": "Sensortyp",
-          "resrobot_travel_search": "Resrobot Resesökning",
-          "origin_type": "Ursprungstyp",
-          "destination_type": "Destinationstyp",
-          "stop_id": "Hållplats-ID",
-          "site_id": "Plats-ID",
-          "line_number": "Linjenummer",
-          "transport_mode": "Transportmedel",
-          "coordinates": "Koordinater",
-          "origin": "Ursprung",
-          "destination": "Destination",
-          "via": "Via",
-          "avoid": "Undvik",
-          "max_walking_distance": "Maximalt gångavstånd (meter)",
           "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
           "direction": "Destinationsfilter (textdel; lämna tomt för alla destinationer)",
+          "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
           "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
         },
-  "data_description": {}
+        "data_description": {
+          "transport_modes": "Lämna tomt för att visa alla transportmedel."
+        }
+      },
+      "reconfigure": {
+        "title": "Omkonfigurera hållplatssensor",
+        "description": "Uppdatera API-nyckeln eller hållplats-ID för den här sensorn.",
+        "data": {
+          "api_key": "API-nyckel",
+          "stop_id": "Hållplats-ID"
+        },
+        "data_description": {}
+      },
+      "reconfigure_resrobot": {
+        "title": "Omkonfigurera Resrobot Resesökning",
+        "description": "Uppdatera API-nyckeln eller reseändpunkterna för den här sensorn.",
+        "data": {
+          "api_key": "API-nyckel",
+          "origin_type": "Ursprungstyp",
+          "origin": "Ursprung (Hållplats-ID eller koordinater)",
+          "destination_type": "Destinationstyp",
+          "destination": "Destination (Hållplats-ID eller koordinater)"
+        },
+        "data_description": {}
       }
     },
     "error": {
@@ -85,17 +94,6 @@
     },
     "abort": {
       "already_configured": "Denna sensorkonfiguration är redan konfigurerad"
-    }
-  },
-  "selector": {
-    "sensor_type": {
-      "options": {
-        "departure": "Avgångar från hållplats",
-        "arrival": "Ankomster till hållplats",
-        "resrobot_travel_search": "Resrobot Resesökning",
-        "stop_id": "Hållplats-ID",
-        "coordinates": "Koordinater"
-      }
     }
   },
   "entity": {
@@ -111,18 +109,61 @@
       }
     }
   },
+  "selector": {
+    "sensor_type": {
+      "options": {
+        "departure": "Avgångar",
+        "arrival": "Ankomster",
+        "resrobot_travel_search": "Resrobot Resesökning"
+      }
+    },
+    "origin_type": {
+      "options": {
+        "stop_id": "Hållplats-ID",
+        "coordinates": "Koordinater (lat,lon)"
+      }
+    },
+    "transport_modes": {
+      "options": {
+        "bus": "Buss",
+        "metro": "Tunnelbana",
+        "train": "Tåg",
+        "tram": "Spårvagn",
+        "boat": "Båt / Färja"
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {
-        "title": "Uppdatera Trafiklab-inställningar",
+        "title": "Uppdatera inställningar för hållplatssensor",
         "description": "Justera filter och intervall för denna sensor.",
         "data": {
           "line_filter": "Linjefilter (kommaseparerade, lämna tomt för alla linjer)",
           "direction": "Destinationsfilter (textdel; lämna tomt för alla destinationer)",
-          "max_trip_duration": "Maximal resetid (minuter, lämna tomt för ingen gräns)",
+          "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
           "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
+        },
+        "data_description": {
+          "transport_modes": "Lämna tomt för att visa alla transportmedel."
+        }
+      },
+      "init_resrobot": {
+        "title": "Uppdatera Resrobot-inställningar",
+        "description": "Justera filter och intervall för denna Resrobot-sensor.",
+        "data": {
+          "via": "Via (valfritt hållplats-ID)",
+          "avoid": "Undvik (valfritt hållplats-ID)",
+          "max_walking_distance": "Maximalt gångavstånd (meter)",
+          "max_trip_duration": "Maximal resetid (minuter, lämna tomt för ingen gräns)",
+          "transport_modes": "Transportmedel (lämna tomt för alla)",
+          "time_window": "Tidsfönster (minuter framåt att söka)",
+          "refresh_interval": "Datauppdateringsintervall (sekunder)"
+        },
+        "data_description": {
+          "transport_modes": "Lämna tomt för att inkludera alla transportmedel. OBS: Om valt exkluderas gång- och bytessträckor från resultaten."
         }
       }
     }

@@ -46,13 +46,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
-    
+
     # Set up services (only once)
     _LOGGER.debug("[Trafiklab] Ensuring services registered during entry setup")
     async_setup_services(hass)
-    
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    
+
     # Schedule initial data fetch without blocking setup
     hass.async_create_task(
         coordinator.async_config_entry_first_refresh()
@@ -70,11 +70,16 @@ async def _update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
+_VALID_TRANSPORT_MODES: frozenset[str] = frozenset({"bus", "metro", "train", "tram", "boat"})
+
+
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:  # noqa: D401
     """Migrate config entry to latest version structure.
 
     Version 1 -> 2: Move mutable settings (line_filter, direction, time_window, refresh_interval)
     from data to options to avoid redundancy and allow UI edits without changing core data.
+    Also normalises transport_modes: moves it from data to options if present, removes any
+    values no longer in the valid set (e.g. the old "ship" key), and ensures the value is a list.
     """
     if entry.version == 1:
         data = dict(entry.data)
@@ -90,12 +95,44 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool: 
             if key in data and key not in options:
                 options[key] = data.pop(key)
                 changed = True
+
+        # Move transport_modes from data → options if it ended up there.
+        if "transport_modes" in data and "transport_modes" not in options:
+            options["transport_modes"] = data.pop("transport_modes")
+            changed = True
+
+        # Normalise transport_modes in options: must be a list of valid strings.
+        raw_modes = options.get("transport_modes")
+        if not isinstance(raw_modes, list):
+            options["transport_modes"] = []
+            changed = True
+        else:
+            cleaned = [m for m in raw_modes if m in _VALID_TRANSPORT_MODES]
+            if cleaned != raw_modes:
+                options["transport_modes"] = cleaned
+                changed = True
+
         if changed:
             hass.config_entries.async_update_entry(entry, data=data, options=options, version=2)
             _LOGGER.debug("Migrated Trafiklab entry %s to version 2 (moved mutable keys to options)", entry.entry_id)
         else:
             hass.config_entries.async_update_entry(entry, version=2)
         return True
+
+    # For already-migrated entries: normalise transport_modes in options in-place
+    # without bumping the version, so old-format values don't silently cause
+    # "value must be one of [...]" errors in the config / options flow.
+    options = dict(entry.options)
+    raw_modes = options.get("transport_modes")
+    if not isinstance(raw_modes, list):
+        options["transport_modes"] = []
+        hass.config_entries.async_update_entry(entry, options=options)
+        _LOGGER.debug("Normalised transport_modes to [] for entry %s", entry.entry_id)
+    elif any(m not in _VALID_TRANSPORT_MODES for m in raw_modes):
+        options["transport_modes"] = [m for m in raw_modes if m in _VALID_TRANSPORT_MODES]
+        hass.config_entries.async_update_entry(entry, options=options)
+        _LOGGER.debug("Removed invalid transport_modes values for entry %s", entry.entry_id)
+
     return True
 
 

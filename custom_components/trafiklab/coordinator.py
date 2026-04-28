@@ -1,6 +1,7 @@
 """Data update coordinator for Trafiklab."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -20,6 +21,8 @@ from .const import (
     SENSOR_TYPE_DEPARTURE,
     SENSOR_TYPE_RESROBOT,
     CONF_UPDATE_CONDITION,
+    CONF_TRANSPORT_MODES,
+    RESROBOT_PRODUCTS_MAP,
 )
 from .api import TrafikLabApiClient
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -87,17 +90,69 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
                 via = opts.get("via", "")
                 avoid = opts.get("avoid", "")
                 max_walking_distance = opts.get("max_walking_distance", 1000)
-                _LOGGER.debug("Fetching Resrobot travel search: origin=%s, destination=%s", origin, destination)
-                data = await self.api_client.get_resrobot_travel_search(
-                    api_key,
-                    origin_type,
-                    origin,
-                    destination_type,
-                    destination,
-                    via,
-                    avoid,
-                    max_walking_distance,
-                )
+                # Build per-mode products bitmasks so each mode gets a fair set of
+                # results.  When only a single mode (or no filter) is selected we
+                # keep the existing single-call behaviour.  When multiple modes are
+                # selected we issue one parallel request per mode and merge the
+                # trips afterwards – this prevents the route planner from filling
+                # all result slots with the fastest mode only.
+                transport_modes = opts.get(CONF_TRANSPORT_MODES) or []
+                known_modes = [m for m in transport_modes if m in RESROBOT_PRODUCTS_MAP]
+
+                async def _fetch_for_products(products_bitmask: int | None) -> dict:
+                    return await self.api_client.get_resrobot_travel_search(
+                        api_key,
+                        origin_type,
+                        origin,
+                        destination_type,
+                        destination,
+                        via,
+                        avoid,
+                        max_walking_distance,
+                        products_bitmask,
+                    )
+
+                if len(known_modes) > 1:
+                    # One request per mode – run concurrently
+                    _LOGGER.debug(
+                        "Fetching Resrobot travel search with %d separate mode calls: %s → %s",
+                        len(known_modes), origin, destination,
+                    )
+                    per_mode_results = await asyncio.gather(
+                        *[_fetch_for_products(RESROBOT_PRODUCTS_MAP[m]) for m in known_modes]
+                    )
+                    # Merge Trip lists from all responses; keep the first response's
+                    # metadata envelope (Trip is the only field we care about).
+                    merged_trips: list = []
+                    seen_trip_keys: set = set()
+                    for result in per_mode_results:
+                        for trip in (result or {}).get("Trip") or []:
+                            # Deduplicate by (first-leg origin/dest names + departure time)
+                            legs = (((trip or {}).get("LegList") or {}).get("Leg")) or []
+                            if isinstance(legs, dict):
+                                legs = [legs]
+                            first_leg = legs[0] if legs else {}
+                            last_leg = legs[-1] if legs else {}
+                            trip_key = (
+                                (first_leg.get("Origin") or {}).get("name", ""),
+                                (first_leg.get("Origin") or {}).get("date", ""),
+                                (first_leg.get("Origin") or {}).get("time", ""),
+                                (last_leg.get("Destination") or {}).get("name", ""),
+                                (last_leg.get("Destination") or {}).get("time", ""),
+                            )
+                            if trip_key not in seen_trip_keys:
+                                seen_trip_keys.add(trip_key)
+                                merged_trips.append(trip)
+                    data = dict(per_mode_results[0]) if per_mode_results else {}
+                    data["Trip"] = merged_trips
+                else:
+                    # Single mode or no filter – original single-call path
+                    products: int | None = RESROBOT_PRODUCTS_MAP.get(known_modes[0]) if known_modes else None
+                    _LOGGER.debug(
+                        "Fetching Resrobot travel search: origin=%s, destination=%s", origin, destination,
+                    )
+                    data = await _fetch_for_products(products)
+
                 # Normalize and sort trips/legs for consistent downstream usage
                 try:
                     data = self._normalize_resrobot_response(data)
@@ -117,16 +172,9 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
                 if not data:
                     _LOGGER.warning("No data received from API")
                     raise UpdateFailed("No data received from API")
-                # Validate API response structure
                 if not isinstance(data, dict):
                     _LOGGER.error("Invalid API response format: expected dict, got %s", type(data))
                     raise UpdateFailed("Invalid API response format")
-                # Check for required top-level fields
-                required_fields = ["timestamp", "query", "stops"]
-                missing_fields = [field for field in required_fields if field not in data]
-                if missing_fields:
-                    _LOGGER.error("Missing required fields in API response: %s", missing_fields)
-                    raise UpdateFailed(f"Invalid API response: missing fields {missing_fields}")
                 _LOGGER.debug("API response keys: %s", list(data.keys()))
                 # Check if we have the expected data structure at the top level
                 if sensor_type == SENSOR_TYPE_ARRIVAL and "arrivals" in data:
