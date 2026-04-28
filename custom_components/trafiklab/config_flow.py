@@ -524,11 +524,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
         })
         current_values = {**self._entry.data, **self._entry.options}
-        # Normalize transport_modes: old entries may lack the key or have None stored,
-        # which causes add_suggested_values_to_schema to set default=None and the
-        # SelectSelector to raise "value must be one of [...]" on submission.
-        if not isinstance(current_values.get(CONF_TRANSPORT_MODES), list):
-            current_values[CONF_TRANSPORT_MODES] = []
+        # Normalize transport_modes: old entries may lack the key, have None stored,
+        # or contain values no longer in the valid set (e.g. the old "ship" key).
+        # add_suggested_values_to_schema passes whatever is here to the frontend as
+        # suggested_value; invalid/null elements cause "value must be one of [...]".
+        current_values[CONF_TRANSPORT_MODES] = [
+            m for m in (current_values.get(CONF_TRANSPORT_MODES) or [])
+            if isinstance(m, str) and m in {"bus", "metro", "train", "tram", "boat"}
+        ]
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(schema, current_values),
@@ -557,11 +560,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             ),
         })
         current_values = {**self._entry.data, **self._entry.options}
-        # Normalize transport_modes: old entries may lack the key or have None stored,
-        # which causes add_suggested_values_to_schema to set default=None and the
-        # SelectSelector to raise "value must be one of [...]" on submission.
-        if not isinstance(current_values.get(CONF_TRANSPORT_MODES), list):
-            current_values[CONF_TRANSPORT_MODES] = []
+        # Normalize transport_modes: old entries may lack the key, have None stored,
+        # or contain values no longer in the valid set (e.g. the old "ship" key).
+        # add_suggested_values_to_schema passes whatever is here to the frontend as
+        # suggested_value; invalid/null elements cause "value must be one of [...]".
+        current_values[CONF_TRANSPORT_MODES] = [
+            m for m in (current_values.get(CONF_TRANSPORT_MODES) or [])
+            if isinstance(m, str) and m in {"bus", "metro", "train", "tram", "boat"}
+        ]
         return self.async_show_form(
             step_id="init_resrobot",
             data_schema=self.add_suggested_values_to_schema(schema, current_values),
