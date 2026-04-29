@@ -1,8 +1,9 @@
 # Home Assistant Trafiklab Integration
 
 [![Stable](https://img.shields.io/badge/project%20state-stable-green.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
-[![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
-[![HACS](https://img.shields.io/badge/HACS-default-brightgreen.svg)](https://github.com/hacs/integration)
+[![Maintained](https://img.shields.io/badge/maintained-yes-green.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
+[![HACS](https://img.shields.io/badge/HACS-default-green.svg)](https://github.com/hacs/integration)
+![Downloads](https://img.shields.io/github/downloads/MrSjodin/HomeAssistant_Trafiklab_Integration/total?color=blue)
 [![Maintainer](https://img.shields.io/badge/maintainer-MrSjodin-blue.svg)](https://github.com/MrSjodin)
 [![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 
