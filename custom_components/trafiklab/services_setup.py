@@ -101,7 +101,15 @@ def _resolve_resrobot_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
     entry_id: str | None = call_data.get("config_entry_id")
     if entry_id:
         coordinator = domain_data.get(entry_id)
-        return coordinator.entry.data.get(CONF_API_KEY) if coordinator else None
+        if coordinator is None:
+            raise ServiceValidationError(
+                f"Config entry '{entry_id}' was not found for {DOMAIN}."
+            )
+        if coordinator.entry.data.get(CONF_SENSOR_TYPE) != SENSOR_TYPE_RESROBOT:
+            raise ServiceValidationError(
+                f"Config entry '{entry_id}' is not a Resrobot travel-search entry."
+            )
+        return coordinator.entry.data.get(CONF_API_KEY)
     for coordinator in domain_data.values():
         if coordinator.entry.data.get(CONF_SENSOR_TYPE) == SENSOR_TYPE_RESROBOT:
             return coordinator.entry.data.get(CONF_API_KEY)
