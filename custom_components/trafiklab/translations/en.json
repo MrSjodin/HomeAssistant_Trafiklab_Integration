@@ -107,6 +107,11 @@
       "resrobot_travel": {
         "name": "Travel Search"
       }
+    },
+    "button": {
+      "update_now": {
+        "name": "Update now"
+      }
     }
   },
   "selector": {

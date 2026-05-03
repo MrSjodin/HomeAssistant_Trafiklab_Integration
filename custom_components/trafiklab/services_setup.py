@@ -6,6 +6,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -13,6 +14,7 @@ from .api import TrafikLabApiClient
 from .const import (
     DOMAIN,
     SERVICE_STOP_LOOKUP,
+    SERVICE_UPDATE_NOW,
     CONF_API_KEY,
     ATTR_SEARCH_QUERY,
     ATTR_STOPS_FOUND,
@@ -23,6 +25,10 @@ _LOGGER = logging.getLogger(__name__)
 STOP_LOOKUP_SCHEMA = vol.Schema({
     vol.Required(CONF_API_KEY): cv.string,
     vol.Required(ATTR_SEARCH_QUERY): cv.string,
+})
+
+UPDATE_NOW_SCHEMA = vol.Schema({
+    vol.Optional("config_entry_id"): cv.string,
 })
 
 
@@ -98,7 +104,32 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
     _LOGGER.info("[Trafiklab] Registered service %s.%s (simple mode)", DOMAIN, SERVICE_STOP_LOOKUP)
 
+    async def handle_update_now(call: ServiceCall) -> None:
+        """Handle update_now service call."""
+        entry_id: str | None = call.data.get("config_entry_id")
+        domain_data: dict = hass.data.get(DOMAIN, {})
+
+        if entry_id is not None:
+            coordinator = domain_data.get(entry_id)
+            if coordinator is None:
+                raise ServiceValidationError(
+                    f"No active Trafiklab config entry with id '{entry_id}'"
+                )
+            await coordinator.async_request_refresh()
+        else:
+            for coordinator in domain_data.values():
+                await coordinator.async_request_refresh()
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_UPDATE_NOW,
+        handle_update_now,
+        schema=UPDATE_NOW_SCHEMA,
+    )
+    _LOGGER.info("[Trafiklab] Registered service %s.%s", DOMAIN, SERVICE_UPDATE_NOW)
+
 
 def async_remove_services(hass: HomeAssistant) -> None:
     """Remove services for Trafiklab."""
     hass.services.async_remove(DOMAIN, SERVICE_STOP_LOOKUP)
+    hass.services.async_remove(DOMAIN, SERVICE_UPDATE_NOW)

@@ -16,3 +16,15 @@ stop_lookup:
       example: "Stockholm"
       selector:
         text:
+
+update_now:
+  name: Update now
+  description: Force an immediate data refresh from the Trafiklab API for one or all config entries.
+  fields:
+    config_entry_id:
+      name: Config entry ID
+      description: ID of a specific Trafiklab config entry to refresh. Omit to refresh all entries.
+      required: false
+      selector:
+        config_entry:
+          integration: trafiklab
