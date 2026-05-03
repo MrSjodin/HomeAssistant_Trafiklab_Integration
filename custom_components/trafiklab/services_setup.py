@@ -152,21 +152,31 @@ def _extract_resrobot_stops(stop_result: dict) -> list[dict]:
       - ``{"StopLocation": [...]}``  (classic Hafas)
       - ``{"stopLocationOrCoordLocation": [...]}``  (newer Hafas)
     Also handles the case where the API returns a single dict instead of a list.
+
+    Only actual stop objects are returned. In particular,
+    ``stopLocationOrCoordLocation`` may contain wrappers like
+    ``{"CoordLocation": {...}}`` which must not be treated as stops.
     """
-    raw = (
-        (stop_result or {}).get("StopLocation")
-        or (stop_result or {}).get("stopLocationOrCoordLocation")
-        or []
-    )
-    if isinstance(raw, dict):
-        raw = [raw]
-    # stopLocationOrCoordLocation entries are wrapped: {"StopLocation": {...}}
+    result = stop_result or {}
     stops: list[dict] = []
-    for item in raw:
-        if isinstance(item, dict) and "StopLocation" in item:
-            stops.append(item["StopLocation"])
-        elif isinstance(item, dict):
+
+    raw_stops = result.get("StopLocation") or []
+    if isinstance(raw_stops, dict):
+        raw_stops = [raw_stops]
+    for item in raw_stops:
+        if isinstance(item, dict):
             stops.append(item)
+
+    raw_mixed_locations = result.get("stopLocationOrCoordLocation") or []
+    if isinstance(raw_mixed_locations, dict):
+        raw_mixed_locations = [raw_mixed_locations]
+    for item in raw_mixed_locations:
+        if not isinstance(item, dict):
+            continue
+        stop_location = item.get("StopLocation")
+        if isinstance(stop_location, dict):
+            stops.append(stop_location)
+
     return stops
 
 
