@@ -4,11 +4,18 @@ stop_lookup:
   fields:
     api_key:
       name: API Key
-      description: Your Trafiklab API key
-      required: true
+      description: Your Trafiklab Realtime API key. Omit to use the key from a configured departure/arrival sensor.
+      required: false
       selector:
         text:
           type: password
+    config_entry_id:
+      name: Config entry ID
+      description: Specific Trafiklab config entry to take the API key from. Ignored when api_key is provided.
+      required: false
+      selector:
+        config_entry:
+          integration: trafiklab
     search_query:
       name: Search query
       description: Search string to find stops (minimum 1 character)
@@ -28,3 +35,103 @@ update_now:
       selector:
         config_entry:
           integration: trafiklab
+
+travel_search:
+  name: Travel search
+  description: Search for public transport journeys between two stops using Resrobot API
+  fields:
+    api_key:
+      name: API Key
+      description: Your Resrobot API key. Omit to use the key from a configured Resrobot travel search sensor.
+      required: false
+      selector:
+        text:
+          type: password
+    config_entry_id:
+      name: Config entry ID
+      description: Specific Trafiklab config entry to take the Resrobot API key from. Ignored when api_key is provided.
+      required: false
+      selector:
+        config_entry:
+          integration: trafiklab
+    origin:
+      name: Origin
+      description: Stop ID, coordinates ("lat,lon"), stop name, zone name (e.g. "home"), or person/device_tracker entity ID — depending on origin_type
+      required: true
+      example: "740000001"
+      selector:
+        text:
+    destination:
+      name: Destination
+      description: Stop ID, coordinates ("lat,lon"), stop name, zone name (e.g. "home"), or person/device_tracker entity ID — depending on destination_type
+      required: true
+      example: "740098000"
+      selector:
+        text:
+    origin_type:
+      name: Origin type
+      description: How to interpret the origin value
+      required: false
+      default: stop_id
+      example: "stop_id"
+      selector:
+        select:
+          options:
+            - stop_id
+            - coordinates
+            - name
+            - zone
+            - person
+    destination_type:
+      name: Destination type
+      description: How to interpret the destination value
+      required: false
+      default: stop_id
+      example: "stop_id"
+      selector:
+        select:
+          options:
+            - stop_id
+            - coordinates
+            - name
+            - zone
+            - person
+    via:
+      name: Via stop ID
+      description: Optional intermediate stop ID the journey must pass through
+      required: false
+      example: "740001234"
+      selector:
+        text:
+    max_walking_distance:
+      name: Max walking distance
+      description: Maximum walking distance in metres at origin and destination
+      required: false
+      default: 1000
+      selector:
+        number:
+          min: 0
+          max: 5000
+          unit_of_measurement: m
+    transport_modes:
+      name: Transport modes
+      description: Restrict to specific transport modes (empty means all modes)
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - bus
+            - train
+            - metro
+            - tram
+            - boat
+    max_trip_duration:
+      name: Max trip duration
+      description: Filter out trips longer than this many minutes
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: min
