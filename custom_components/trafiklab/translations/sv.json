@@ -127,7 +127,7 @@
         "stop_id": "Hållplats-ID",
         "coordinates": "Koordinater (lat,lon)",
         "name": "Hållplatsnamn",
-        "zone": "Home Assistant-zon (t.ex. Hemma)",
+        "zone": "Home Assistant-zon (t.ex. home)",
         "person": "Person / Enhetsspårare"
       }
     },
