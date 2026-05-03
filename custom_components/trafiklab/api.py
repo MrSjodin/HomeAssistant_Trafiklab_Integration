@@ -14,6 +14,7 @@ from .const import (
     STOP_LOOKUP_ENDPOINT,
     RESROBOT_BASE_URL,
     RESROBOT_TRAVEL_SEARCH_ENDPOINT,
+    RESROBOT_LOCATION_ENDPOINT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -181,7 +182,7 @@ class TrafikLabApiClient:
             raise TrafikLabApiError(f"Request failed: {err}") from err
 
     async def search_stops(self, search_value: str) -> dict[str, Any]:
-        """Search for stops by name."""
+        """Search for stops by name using the Realtime API (returns local stop IDs)."""
         url = f"{API_BASE_URL}{STOP_LOOKUP_ENDPOINT}/{search_value}"
         params = {"key": self.api_key}
 
@@ -193,6 +194,36 @@ class TrafikLabApiClient:
             raise TrafikLabApiError("Request timed out") from err
         except aiohttp.ClientError as err:
             raise TrafikLabApiError(f"Request failed: {err}") from err
+
+    async def search_resrobot_stops(self, search_value: str, api_key: str) -> dict[str, Any]:
+        """Search for stops by name using Resrobot /location.name (returns national stop IDs).
+
+        Use this when the resolved stop ID will be passed to get_resrobot_travel_search.
+        Returns a dict with a ``StopLocation`` list, each entry having an ``extId``
+        field containing the national 9-digit stop ID (e.g. "740000001").
+        """
+        url = f"{RESROBOT_BASE_URL}{RESROBOT_LOCATION_ENDPOINT}"
+        params = {
+            "accessId": api_key,
+            "input": search_value,
+            "format": "json",
+        }
+        try:
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    _LOGGER.debug("Resrobot location.name raw response for %r: %s", search_value, data)
+                    return data
+                response_text = await response.text()
+                if response.status == 403:
+                    raise TrafikLabApiError(f"Invalid Resrobot API key: {response_text}")
+                else:
+                    response.raise_for_status()
+                    return await response.json()
+        except asyncio.TimeoutError as err:
+            raise TrafikLabApiError("Resrobot location lookup timed out") from err
+        except aiohttp.ClientError as err:
+            raise TrafikLabApiError(f"Resrobot location lookup failed: {err}") from err
 
     async def validate_api_key(self, area_id: str = "740098000") -> bool:
         """Validate the API key by making a test request to Stockholm."""
