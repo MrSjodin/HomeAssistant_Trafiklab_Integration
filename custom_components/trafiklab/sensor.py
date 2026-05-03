@@ -274,7 +274,8 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             )
         return upcoming
 
-    def _normalize_resrobot_trips(self, trips_raw: Any, max_trip_duration: int | None = None) -> list[dict[str, Any]]:
+    @staticmethod
+    def _normalize_resrobot_trips(trips_raw: Any, max_trip_duration: int | None = None) -> list[dict[str, Any]]:
         """Normalize and sort ResRobot trips and their legs for attribute exposure.
 
         Returns a list of trips where each has a key "legs" which is a list of
@@ -538,3 +539,6 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             ",".join(direction_tokens) if direction_tokens else "*",
         )
         return filtered
+
+
+normalize_resrobot_trips = TrafikLabSensor._normalize_resrobot_trips

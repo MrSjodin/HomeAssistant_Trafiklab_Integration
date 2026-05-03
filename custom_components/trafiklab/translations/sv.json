@@ -125,7 +125,10 @@
     "origin_type": {
       "options": {
         "stop_id": "Hållplats-ID",
-        "coordinates": "Koordinater (lat,lon)"
+        "coordinates": "Koordinater (lat,lon)",
+        "name": "Hållplatsnamn",
+        "zone": "Home Assistant-zon (t.ex. home)",
+        "person": "Person / Enhetsspårare"
       }
     },
     "transport_modes": {

@@ -125,7 +125,10 @@
     "origin_type": {
       "options": {
         "stop_id": "Stop ID",
-        "coordinates": "Coordinates (lat,lon)"
+        "coordinates": "Coordinates (lat,lon)",
+        "name": "Stop name",
+        "zone": "Home Assistant zone (e.g. Home)",
+        "person": "Person / Device tracker"
       }
     },
     "transport_modes": {
