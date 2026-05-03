@@ -121,10 +121,10 @@ def _validate_coordinates(value: str) -> bool:
     """Return True when *value* is a valid ``'lat,lon'`` string."""
     try:
         lat, lon = value.split(",")
-        float(lat)
-        float(lon)
+        _lat = float(lat)
+        _lon = float(lon)
         return True
-    except Exception:
+    except (ValueError, AttributeError):
         return False
 
 
