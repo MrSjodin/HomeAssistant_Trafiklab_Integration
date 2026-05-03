@@ -14,7 +14,7 @@ from .const import DOMAIN
 from .coordinator import TrafikLabCoordinator
 from .services_setup import async_setup_services, async_remove_services
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BUTTON]
 
 _LOGGER = logging.getLogger(__name__)
 
