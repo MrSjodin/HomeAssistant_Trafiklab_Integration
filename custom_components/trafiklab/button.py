@@ -59,11 +59,11 @@ class TrafikLabUpdateButton(ButtonEntity):
         name_slug = _slugify(configured_name)
         stype = entry.data.get(CONF_SENSOR_TYPE, "departure")
         if stype == SENSOR_TYPE_ARRIVAL:
-            self._attr_suggested_object_id = f"trafiklab_arrival_{name_slug}"
+            self._attr_suggested_object_id = f"trafiklab_arrival_{name_slug}_update_now"
         elif stype == SENSOR_TYPE_RESROBOT:
-            self._attr_suggested_object_id = f"trafiklab_travel_{name_slug}"
+            self._attr_suggested_object_id = f"trafiklab_travel_{name_slug}_update_now"
         else:
-            self._attr_suggested_object_id = f"trafiklab_departure_{name_slug}"
+            self._attr_suggested_object_id = f"trafiklab_departure_{name_slug}_update_now"
 
     @property
     def device_info(self) -> dict[str, Any]:
