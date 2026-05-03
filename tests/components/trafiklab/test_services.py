@@ -413,7 +413,63 @@ async def test_travel_search_with_zone_destination(hass: Any, setup_integration:
 
 
 @pytest.mark.asyncio
-async def test_travel_search_zone_not_found(hass: Any, setup_integration: bool) -> None:
+async def test_travel_search_zone_multiword_slugified(hass: Any, setup_integration: bool) -> None:
+    """origin_type='zone' with a multi-word name resolves via slugify (e.g. 'My Home' → zone.my_home)."""
+    hass.states.async_set(
+        "zone.my_home", "zoning", {"latitude": 59.3293, "longitude": 18.0686}
+    )
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_resrobot_travel_search",
+        return_value=_RESROBOT_TRIP,
+    ) as mock_trip:
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_TRAVEL_SEARCH,
+            {
+                "api_key": "k",
+                "origin": "My Home",
+                "origin_type": "zone",
+                "destination": "740098000",
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_trip.assert_called_once()
+    assert response["resolved_origin_coords"] == "59.3293,18.0686"
+    assert "error" not in response
+
+
+@pytest.mark.asyncio
+async def test_travel_search_zone_by_friendly_name(hass: Any, setup_integration: bool) -> None:
+    """origin_type='zone' resolves via friendly_name scan for accented/non-slug names."""
+    hass.states.async_set(
+        "zone.home", "zoning",
+        {"latitude": 59.3293, "longitude": 18.0686, "friendly_name": "Hemma"},
+    )
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_resrobot_travel_search",
+        return_value=_RESROBOT_TRIP,
+    ) as mock_trip:
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_TRAVEL_SEARCH,
+            {
+                "api_key": "k",
+                "origin": "Hemma",
+                "origin_type": "zone",
+                "destination": "740098000",
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_trip.assert_called_once()
+    assert response["resolved_origin_coords"] == "59.3293,18.0686"
+    assert "error" not in response
+
+
+
     """zone origin that does not exist returns an error field."""
     response = await hass.services.async_call(
         DOMAIN,

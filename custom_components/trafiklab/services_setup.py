@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -119,13 +120,37 @@ def _resolve_resrobot_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
 def _resolve_zone_coordinates(hass: HomeAssistant, value: str) -> str | None:
     """Resolve a zone name or entity_id to a 'lat,lon' string.
 
-    Accepts ``"home"``, ``"Home"``, or ``"zone.home"`` — all normalised the same way.
+    Resolution order:
+    1. Direct lowercase match: ``"home"`` → ``zone.home``, ``"zone.home"`` → ``zone.home``.
+    2. Slugified match: ``"My Home"`` → ``zone.my_home`` (spaces/special chars → underscores).
+    3. Friendly-name scan: case-insensitive match on the zone's ``friendly_name`` attribute.
+
     Returns ``None`` if the zone entity does not exist or has no location attributes.
     """
-    normalized = value.strip().lower()
+    stripped = value.strip()
+
+    # 1. Direct lowercase match (handles "home", "Home", "zone.home")
+    normalized = stripped.lower()
     if not normalized.startswith("zone."):
         normalized = f"zone.{normalized}"
     state = hass.states.get(normalized)
+
+    # 2. Slugified match (handles multi-word names like "My Home" → zone.my_home)
+    if state is None:
+        slug = re.sub(r"[^a-z0-9_]", "_", re.sub(r"\s+", "_", stripped.lower()))
+        slugged = slug if slug.startswith("zone.") else f"zone.{slug}"
+        if slugged != normalized:
+            state = hass.states.get(slugged)
+
+    # 3. Friendly-name scan (handles names with accents or that differ from the entity slug)
+    if state is None:
+        lower = stripped.lower()
+        for zone_state in hass.states.async_all("zone"):
+            friendly = (zone_state.attributes.get("friendly_name") or "").lower()
+            if friendly == lower:
+                state = zone_state
+                break
+
     if state is None:
         return None
     lat = state.attributes.get("latitude")
