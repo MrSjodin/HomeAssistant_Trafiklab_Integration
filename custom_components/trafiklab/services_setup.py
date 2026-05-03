@@ -437,7 +437,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
 
 def async_remove_services(hass: HomeAssistant) -> None:
-    """Remove services for Trafiklab."""
+    """Remove services for Trafiklab.
+
+    ``travel_search`` is intentionally left registered because it can operate
+    without any loaded config entry when the caller supplies an explicit API
+    key (and it is also available from the YAML stub setup path). Removing it
+    when the last entry is unloaded makes the ad-hoc service disappear until
+    Home Assistant restarts.
+    """
     hass.services.async_remove(DOMAIN, SERVICE_STOP_LOOKUP)
     hass.services.async_remove(DOMAIN, SERVICE_UPDATE_NOW)
-    hass.services.async_remove(DOMAIN, SERVICE_TRAVEL_SEARCH)
