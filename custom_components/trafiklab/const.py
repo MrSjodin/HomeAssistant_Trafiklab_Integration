@@ -50,6 +50,7 @@ STOP_LOOKUP_ENDPOINT: Final = "/stops/name"
 # Resrobot API
 RESROBOT_BASE_URL: Final = "https://api.resrobot.se/v2.1"
 RESROBOT_TRAVEL_SEARCH_ENDPOINT: Final = "/trip"
+RESROBOT_LOCATION_ENDPOINT: Final = "/location.name"
 
 # Transport modes
 TRANSPORT_MODES = {
@@ -76,6 +77,7 @@ RESROBOT_PRODUCTS_MAP: dict[str, int] = {
 # Service names
 SERVICE_STOP_LOOKUP: Final = "stop_lookup"
 SERVICE_UPDATE_NOW: Final = "update_now"
+SERVICE_TRAVEL_SEARCH: Final = "travel_search"
 
 # Service fields
 ATTR_SEARCH_QUERY: Final = "search_query"
