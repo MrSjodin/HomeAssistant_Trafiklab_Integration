@@ -566,3 +566,77 @@ async def test_travel_search_person_no_location(hass: Any, setup_integration: bo
     assert response["trips"] == []
     assert response["total_trips"] == 0
     assert "person.unknown" in response["error"]
+
+
+# ---------------------------------------------------------------------------
+# Coordinate validation tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_travel_search_invalid_origin_coordinates(hass: Any, setup_integration: bool) -> None:
+    """origin_type='coordinates' with a malformed value returns a descriptive error."""
+    response = await hass.services.async_call(
+        DOMAIN,
+        SERVICE_TRAVEL_SEARCH,
+        {
+            "api_key": "k",
+            "origin": "not_a_coordinate",
+            "origin_type": "coordinates",
+            "destination": "740098000",
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response["trips"] == []
+    assert response["total_trips"] == 0
+    assert "Invalid coordinates for origin" in response["error"]
+    assert "not_a_coordinate" in response["error"]
+
+
+@pytest.mark.asyncio
+async def test_travel_search_invalid_destination_coordinates(hass: Any, setup_integration: bool) -> None:
+    """destination_type='coordinates' with a malformed value returns a descriptive error."""
+    response = await hass.services.async_call(
+        DOMAIN,
+        SERVICE_TRAVEL_SEARCH,
+        {
+            "api_key": "k",
+            "origin": "740000001",
+            "destination": "bad;input",
+            "destination_type": "coordinates",
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response["trips"] == []
+    assert response["total_trips"] == 0
+    assert "Invalid coordinates for destination" in response["error"]
+    assert "bad;input" in response["error"]
+
+
+@pytest.mark.asyncio
+async def test_travel_search_valid_coordinates_accepted(hass: Any, setup_integration: bool) -> None:
+    """Valid 'lat,lon' coordinates are accepted without error."""
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_resrobot_travel_search",
+        return_value=_RESROBOT_TRIP,
+    ) as mock_trip:
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_TRAVEL_SEARCH,
+            {
+                "api_key": "k",
+                "origin": "59.3293,18.0686",
+                "origin_type": "coordinates",
+                "destination": "59.334,18.063",
+                "destination_type": "coordinates",
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_trip.assert_called_once()
+    assert "error" not in response
+    assert response["total_trips"] == 1

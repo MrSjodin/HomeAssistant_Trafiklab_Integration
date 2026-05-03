@@ -117,6 +117,17 @@ def _resolve_resrobot_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
     return None
 
 
+def _validate_coordinates(value: str) -> bool:
+    """Return True when *value* is a valid ``'lat,lon'`` string."""
+    try:
+        lat, lon = value.split(",")
+        float(lat)
+        float(lon)
+        return True
+    except Exception:
+        return False
+
+
 def _resolve_zone_coordinates(hass: HomeAssistant, value: str) -> str | None:
     """Resolve a zone name or entity_id to a 'lat,lon' string.
 
@@ -426,6 +437,28 @@ def async_setup_services(hass: HomeAssistant) -> None:
                         known_transport_modes = [
                             mode for mode in transport_modes if mode in RESROBOT_PRODUCTS_MAP
                         ]
+
+                    # Validate coordinates now that all resolution is done.
+                    # Zone/person resolution already produces valid 'lat,lon' strings,
+                    # but user-supplied coordinates must be checked explicitly.
+                    if origin_type == "coordinates" and not _validate_coordinates(origin):
+                        return {
+                            "trips": [],
+                            "total_trips": 0,
+                            "error": (
+                                f"Invalid coordinates for origin: '{origin}' "
+                                "— expected 'lat,lon' (e.g. '59.33,18.07')"
+                            ),
+                        }
+                    if destination_type == "coordinates" and not _validate_coordinates(destination):
+                        return {
+                            "trips": [],
+                            "total_trips": 0,
+                            "error": (
+                                f"Invalid coordinates for destination: '{destination}' "
+                                "— expected 'lat,lon' (e.g. '59.33,18.07')"
+                            ),
+                        }
 
                     product_requests: list[int | None]
                     if known_transport_modes:
