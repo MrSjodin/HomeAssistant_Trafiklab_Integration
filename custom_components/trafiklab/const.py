@@ -75,6 +75,7 @@ RESROBOT_PRODUCTS_MAP: dict[str, int] = {
 
 # Service names
 SERVICE_STOP_LOOKUP: Final = "stop_lookup"
+SERVICE_UPDATE_NOW: Final = "update_now"
 
 # Service fields
 ATTR_SEARCH_QUERY: Final = "search_query"
