@@ -353,6 +353,49 @@ async def test_stop_lookup_key_resolved_from_departure_entry(hass: HomeAssistant
     assert "error" not in response
 
 
+@pytest.mark.asyncio
+async def test_stop_lookup_rejects_unknown_config_entry_id(hass: HomeAssistant, setup_integration: bool) -> None:
+    """stop_lookup raises ServiceValidationError for an unknown config_entry_id."""
+    with pytest.raises(ServiceValidationError, match="not found"):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_STOP_LOOKUP,
+            {"config_entry_id": "nonexistent-entry-id", "search_query": "central"},
+            blocking=True,
+            return_response=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_stop_lookup_rejects_resrobot_config_entry_id(hass: HomeAssistant) -> None:
+    """stop_lookup raises ServiceValidationError when a Resrobot entry_id is supplied."""
+    from tests.components.trafiklab.const import ENTRY_DATA_RESROBOT, ENTRY_OPTIONS_DEFAULT
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=ENTRY_DATA_RESROBOT,
+        options=ENTRY_OPTIONS_DEFAULT,
+        unique_id="test-stop-lookup-wrong-type",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.trafiklab.coordinator.TrafikLabCoordinator._async_update_data",
+        return_value={},
+    ):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    with pytest.raises(ServiceValidationError, match="not a departure or arrival entry"):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_STOP_LOOKUP,
+            {"config_entry_id": entry.entry_id, "search_query": "central"},
+            blocking=True,
+            return_response=True,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Zone and person origin/destination tests
 # ---------------------------------------------------------------------------

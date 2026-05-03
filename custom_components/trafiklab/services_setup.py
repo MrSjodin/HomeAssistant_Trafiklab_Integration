@@ -81,7 +81,16 @@ def _resolve_realtime_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
     entry_id: str | None = call_data.get("config_entry_id")
     if entry_id:
         coordinator = domain_data.get(entry_id)
-        return coordinator.entry.data.get(CONF_API_KEY) if coordinator else None
+        if coordinator is None:
+            raise ServiceValidationError(
+                f"Config entry '{entry_id}' was not found for {DOMAIN}."
+            )
+        if coordinator.entry.data.get(CONF_SENSOR_TYPE) not in (SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL):
+            raise ServiceValidationError(
+                f"Config entry '{entry_id}' is not a departure or arrival entry — "
+                "only departure/arrival entries carry a Realtime API key."
+            )
+        return coordinator.entry.data.get(CONF_API_KEY)
     for coordinator in domain_data.values():
         if coordinator.entry.data.get(CONF_SENSOR_TYPE) in (SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL):
             return coordinator.entry.data.get(CONF_API_KEY)
