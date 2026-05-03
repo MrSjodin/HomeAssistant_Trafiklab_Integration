@@ -7,36 +7,44 @@
 [![Maintainer](https://img.shields.io/badge/maintainer-MrSjodin-blue.svg)](https://github.com/MrSjodin)
 [![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 
-So, here's a hopefully useful Home Assistant custom integration for Swedish public transport information by using the newer **Trafiklab Realtime API**.
+**Trafiklab** Home Assistant custom integration for Swedish public transport, using the **Trafiklab Realtime API** and **Trafiklab Resrobot API**, presents you the timetables for a stop as well as the full route plan for your travel. The integration covers all major public transport operators in Sweden — not just SL. See [Operators](#operators) for the full list.
 
-The story behind is that I'd like to be able to show the upcoming departures from our nearest stops in the Home Assistant ecosystem, a bit outside of the city (and not in the SL area). Although HASL is a great integration, the newer versions only supports SL - therefore I saw a need to have a native integration towards the **Trafiklab Realtime API** for use in more or less the whole country.
+This integration is entirely community-developed and is not developed by, or in collaboration with, Trafiklab/Samtrafiken. Trafiklab/Samtrafiken has given the project a thumbs-up though — see [Trafiklab Praise page](https://support.trafiklab.se/org/trafiklabse/d/realtime-api-integrerat-i-home-assistant/).
 
-For a complete list of traffic operators covered by the API and this integration, see [Operators](#operators) section below. 
+## Contents
 
-This integration has not been developed by, or in collaboration with, Trafiklab/Samtrafiken but is entirely community-developed. Trafiklab/Samtrafiken has been informed about the integration and has given the project a thumbs-up regarding the use of their API, etc. See [Trafiklab Praise page](https://support.trafiklab.se/org/trafiklabse/d/realtime-api-integrerat-i-home-assistant/) as reference.
+- [Features](#features)
+- [Installation](#installation)
+- [Finding Your Stop ID](#finding-your-stop-id)
+- [Configuration](#configuration)
+- [Sensors](#sensors)
+- [Services](#services)
+  - [Stop ID Lookup](#stop-id-lookup-service)
+  - [Update Now](#update-now-service)
+  - [Travel Search](#travel-search-service)
+- [Automation Examples](#automation-examples)
+- [Dashboard & Lovelace Cards](#dashboard--lovelace-cards)
+- [Operators](#operators)
+- [API Documentation](#api-documentation)
 
-## Dashboard cards
-There's also a couple of Lovelace dashboard cards to use as companions to this integration:
-- [Timetable Lovelace Dashboard custom card](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Timetable_Card)
-- [Travel Search Lovelace Dashboard custom card](https://github.com/MrSjodin/HomeAssistant_Trafiklab_TravelSearch_Card)
+---
 
-## API and Integration Features
+## Features
 
-- **Real-time departures and arrivals**: Get live realtime departure and arrival information from any Trafiklab covered stop in Sweden
-- **Resrobot end-to-end travel search (new in v0.6.0)**: Trip planning between origin and destination (stop ID or coordinates)
+- **Real-time departures and arrivals**: Live departure and arrival information from any Trafiklab-covered stop in Sweden
+- **Resrobot end-to-end travel search**: Trip planning between origin and destination (stop ID, coordinates, stop name, HA zone, or person entity)
 - **Line filtering**: Monitor specific lines by filtering with comma-separated line numbers, per sensor
 - **Destination filtering**: Filter by (substring) text match of destination(s) at a stop (useful for busy stops), per sensor
 - **Configurable time window**: Set how many minutes ahead to search (1-1440 minutes), per sensor
-- **Maximum trip duration filter (new in v0.7.0)**: For Travel Search sensors, exclude trips whose total duration exceeds a configurable limit (1-1440 minutes). Leave empty for no limit. Backward compatible — existing config entries without this setting are unaffected.
-- **Transport mode filtering (new in v0.8.0)**: Filter results by one or more transport categories — Bus, Metro, Train, Tram, or Boat/Ferry — for both Realtime and Travel Search sensors. Leave empty to include all modes.
-- **Multiple transport modes**: Support for buses, trains, metro, trams, and boats/ferries
+- **Maximum trip duration filter**: For Travel Search sensors, exclude trips longer than a configurable limit (1-1440 minutes)
+- **Transport mode filtering**: Filter by transport category — Bus, Metro, Train, Tram, or Boat/Ferry — for both Realtime and Travel Search sensors
 - **Flexible sensor configuration**: Create separate sensors for departures and arrivals
-- **Stop lookup service**: Search for the stop ID by it's name using Home Assistant service
-- **Config flow**: Easy setup through the Home Assistant UI with step-by-step configuration
+- **Stop lookup service**: Find stop IDs by name using a Home Assistant service call
+- **Update now service**: Force an immediate data refresh for one or all sensors — by service call or via the entry's button
+- **Ad-hoc travel search service**: Query Resrobot for a journey on-demand without a permanent sensor, using stop IDs, coordinates, stop names, HA zones, or person/device_tracker entities
+- **Config flow**: Easy setup through the Home Assistant UI
 - **Multi-language support**: English and Swedish translations
-- **Nationwide coverage**: Covers all public transport operators in Sweden that are a part of Trafiklab API. 
-
-The integration uses the newer **Trafiklab Realtime APIs** - see [Trafiklab Realtime API webpage](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) for more information.
+- **Nationwide coverage**: All public transport operators in Sweden covered by Trafiklab
 
 
 ## Installation
@@ -51,6 +59,19 @@ The integration uses the newer **Trafiklab Realtime APIs** - see [Trafiklab Real
 
 1. Copy the `custom_components/trafiklab` folder to your Home Assistant `custom_components` directory
 2. Restart Home Assistant
+
+## Finding Your Stop ID
+
+Before you can configure any sensor, you need the **stop ID** for your location. Use the built-in `trafiklab.stop_lookup` service to find it — see [Stop ID Lookup Service](#stop-id-lookup-service) for full details.
+
+**Quick steps:**
+1. If you have no Trafiklab config entries yet, add this one-line stub to `configuration.yaml` and restart:
+   ```yaml
+   trafiklab:
+   ```
+2. Open **Developer Tools → Services**, select `trafiklab.stop_lookup`
+3. Enter your **Realtime API key** and a search string (your stop or town name)
+4. Copy the `id` value from the response — that is your **Stop ID**
 
 ## Configuration
 
@@ -289,7 +310,7 @@ If the field is left empty, updates always occur. On template errors, the integr
 - Negative numbers indicate past departures (useful for detecting delays)
 - `null`/`unavailable` indicates no data available
 
-### Automation Examples
+## Automation Examples
 
 #### Basic Departure Notification
 ```yaml
@@ -398,35 +419,41 @@ automation:
             in {{ states('sensor.my_stop_next_departure') }} minutes!
 ```
 
+## Services
+
 ### Stop ID Lookup Service
 
-There are basically two ways of lookup the Stop ID. You can go directly to [Trafiklab API](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/openapi-specification/) where you can use the function to try out the Stop lookup API. Enter your API key and search string to get a response back.
+Before you can configure a departure, arrival, or travel search sensor you need the **stop ID** for your location. The `trafiklab.stop_lookup` service lets you find it directly from Home Assistant without leaving the UI.
 
-The other way is to use the integration provided service to search for stops by name. Please note that the service only registers in Home Assistant if either:
-1. You have at least one Trafiklab config entry; OR
-2. You add an (optional) empty YAML stub in configuration.yaml:
+#### Getting started — before your first sensor
+
+The service registers as soon as the integration is loaded. If you haven't added any Trafiklab config entry yet, add a one-line YAML stub so the integration loads on startup:
 
 ```yaml
+# configuration.yaml
 trafiklab:
 ```
 
-When you have entered the YAML stub and restarted Home Assistant, you can now call the service:
+Restart Home Assistant, then open **Developer Tools → Services**, search for `trafiklab.stop_lookup`, and call it with your Realtime API key and a search string.
+
+#### Calling the service
 
 ```yaml
 service: trafiklab.stop_lookup
 data:
-  api_key: "your_api_key"
+  api_key: "your_realtime_api_key"  # required the first time; optional once a departure/arrival sensor exists
   search_query: "Stockholm"
 ```
 
-#### Service Response
+**`api_key`** is your [Trafiklab Realtime API key](https://www.trafiklab.se/). Once you have at least one departure or arrival sensor configured, the key is resolved automatically and you can omit this field entirely.
 
-The service returns data directly in the Services panel:
+#### Response
+
 ```yaml
 search_query: "Stockholm"
 total_stops: 3
 stops_found:
-  - id: "740098000" # <-- This is what you'll use as Stop ID when setting up a departure or arrival sensor
+  - id: "740098000"     # ← copy this value as the Stop ID when setting up a sensor
     name: "Stockholm"
     area_type: "META_STOP"
     transport_modes: ["BUS", "TRAIN", "TRAM", "METRO"]
@@ -438,27 +465,188 @@ stops_found:
         lon: 18.054943
 ```
 
-Events are not currently emitted; use the direct service response.
+Use the `id` value from `stops_found` as the **Stop ID** (or **Origin / Destination** for Travel Search) when creating a sensor. The area-level ID (e.g. `740098000`) covers all platforms at that location and is usually what you want.
 
-### Automation with Stop Lookup
+> **Tip:** If your search returns many results, add more of the stop name to narrow it down — e.g. `"Stockholms centralstation"` instead of `"Stockholm"`.
+
+---
+
+### Update Now Service
+
+Force an immediate data refresh for one or all configured sensors. Useful in automations that react to events (arrivals home, alarm clock, etc.) and need fresh data right away.
+
+```yaml
+# Refresh all Trafiklab sensors at once
+service: trafiklab.update_now
+```
+
+```yaml
+# Refresh a single sensor by its config entry ID
+service: trafiklab.update_now
+data:
+  config_entry_id: "your_entry_id"
+```
+
+The `config_entry_id` is shown in **Settings → Devices & Services → Trafiklab → (entry) → Info**. Omit it to refresh every active Trafiklab entry.
+
+#### Automation example
 
 ```yaml
 automation:
-  - alias: "Find stops and notify"
+  - alias: "Refresh departures when arriving home"
     trigger:
-      - platform: event
-        event_type: trafiklab_stop_lookup_result
+      - platform: state
+        entity_id: person.john
+        to: "home"
     action:
-      - service: notify.persistent_notification
-        data:
-          message: >
-            Found {{ event.data.stops_found | length }} stops for "{{ event.data.search_query }}":
-            {% for stop in event.data.stops_found[:5] %}
-            - {{ stop.name }} (ID: {{ stop.id }})
-            {% endfor %}
+      - service: trafiklab.update_now
 ```
 
-### Lovelace Card Examples
+---
+
+### Travel Search Service
+
+Query Resrobot for a journey on demand — no permanent sensor required. Returns normalised trips directly as a service response. Requires a **Resrobot API key** (separate from the Realtime key).
+
+The `api_key` is optional when you already have a Resrobot Travel Search sensor configured; the key is resolved automatically from it.
+
+#### Origin and destination types
+
+| `origin_type` / `destination_type` | `origin` / `destination` value | Notes |
+|---|---|---|
+| `stop_id` *(default)* | National stop ID, e.g. `"740000001"` | Use Stop Lookup to find IDs |
+| `coordinates` | `"lat,lon"`, e.g. `"59.330,18.059"` | Decimal degrees |
+| `name` | Free-text stop name, e.g. `"Stockholm C"` | First Resrobot match is used; resolved ID returned as `resolved_origin_id` / `resolved_destination_id` |
+| `zone` | HA zone name or entity ID, e.g. `"home"` or `"zone.work"` | Resolved coordinates returned as `resolved_origin_coords` / `resolved_destination_coords` |
+| `person` | HA person or device_tracker entity ID, e.g. `"person.john"` | Uses GPS attributes when available; falls back to the zone the person is currently in |
+
+#### Basic example — two stop IDs
+
+```yaml
+service: trafiklab.travel_search
+data:
+  origin: "740000001"
+  destination: "740098000"
+```
+
+#### Name resolution
+
+```yaml
+service: trafiklab.travel_search
+data:
+  origin: "Centralen"
+  origin_type: "name"
+  destination: "Odenplan"
+  destination_type: "name"
+```
+
+The response includes `resolved_origin_id` and `resolved_destination_id` with the national stop IDs that were used.
+
+#### Using a zone as destination
+
+```yaml
+service: trafiklab.travel_search
+data:
+  origin: "740000001"
+  destination: "home"         # resolves zone.home
+  destination_type: "zone"
+```
+
+Response includes `resolved_destination_coords`.
+
+#### Using current position as origin
+
+```yaml
+service: trafiklab.travel_search
+data:
+  origin: "person.john"      # uses GPS or falls back to zone coords
+  origin_type: "person"
+  destination: "740098000"
+```
+
+#### Full example with all options
+
+```yaml
+service: trafiklab.travel_search
+data:
+  api_key: "your_resrobot_api_key"   # optional — resolved from Resrobot sensor if omitted
+  origin: "person.john"
+  origin_type: "person"
+  destination: "home"
+  destination_type: "zone"
+  via: "740001234"                   # optional intermediate stop
+  max_walking_distance: 800          # metres (default 1000)
+  transport_modes:                   # empty = all modes
+    - train
+    - bus
+  max_trip_duration: 90              # exclude trips longer than 90 minutes
+```
+
+#### Service response
+
+```yaml
+total_trips: 2
+resolved_origin_coords: "59.340,18.055"   # present when origin_type is person or zone
+resolved_destination_coords: "59.329,18.068"
+trips:
+  - index: 0
+    duration_total: 42          # total minutes, null if times unparseable
+    legs:
+      - origin_name: "Nearest stop"
+        origin_time: "2026-05-03 14:30:00"
+        dest_name: "Stockholm C"
+        dest_time: "2026-05-03 15:00:00"
+        type: "Public Transport"
+        product: "SJ Regional"
+        direction: "Stockholm"
+        line_number: "42"
+        category: "Train"
+        duration: 30
+  - index: 1
+    duration_total: 55
+    legs: [ ... ]
+```
+
+If an error occurs (bad API key, unresolvable stop name, etc.) the response contains `trips: []`, `total_trips: 0`, and an `error` field with a description.
+
+#### Automation example — notify on journey options
+
+```yaml
+automation:
+  - alias: "Journey home options"
+    trigger:
+      - platform: time
+        at: "16:00:00"
+    action:
+      - service: trafiklab.travel_search
+        data:
+          origin: "person.john"
+          origin_type: "person"
+          destination: "home"
+          destination_type: "zone"
+          max_trip_duration: 60
+        response_variable: journey
+      - condition: template
+        value_template: "{{ journey.total_trips > 0 }}"
+      - service: notify.mobile_app_my_phone
+        data:
+          message: >
+            {{ journey.total_trips }} journey(s) home found.
+            Next departs at
+            {{ journey.trips[0].legs[0].origin_time }}.
+```
+
+---
+
+## Dashboard & Lovelace Cards
+
+There are companion dashboard cards designed for this integration:
+- [Timetable card](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Timetable_Card) — shows upcoming departures/arrivals in a timetable layout
+- [Travel Search card](https://github.com/MrSjodin/HomeAssistant_Trafiklab_TravelSearch_Card) — shows journey results from a Travel Search sensor
+
+### Built-in Lovelace Card Examples
+
+The sensors also work with any standard HA card. Some examples:
 
 #### Basic Entity Card
 ```yaml
@@ -572,10 +760,11 @@ For current list of operators, please visit [Trafiklab Timetables page](https://
 
 This integration uses the following Trafiklab APIs and endpoints:
 
-- [Trafiklab Realtime APIs](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/)
-- [Trafiklab Timetables](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/timetables/) (for departures and arrivals)
-- [Trafiklab Stop Lookup](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/stop-lookup/) (for finding stops)
-- [Resrobot Travel Search](https://www.trafiklab.se/api/our-apis/resrobot-v21/) (via Trafiklab) for trip planning between origin and destination (separate API key)
+- [Trafiklab Realtime APIs](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/) — departures, arrivals, and stop lookup
+- [Trafiklab Timetables](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/timetables/) — departure and arrival boards
+- [Trafiklab Stop Lookup](https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/stop-lookup/) — finding stops by name (used by the `stop_lookup` service)
+- [Resrobot v2.1 Travel Search](https://www.trafiklab.se/api/our-apis/resrobot-v21/) — trip planning between any two points in Sweden (used by Travel Search sensors and the `travel_search` service; requires a separate Resrobot API key)
+- [Resrobot v2.1 Stop Lookup](https://www.trafiklab.se/api/our-apis/resrobot-v21/stop-lookup/) — stop name resolution returning national stop IDs (used internally by the `travel_search` service when `origin_type` or `destination_type` is `"name"`)
 
 
 ## License
@@ -601,4 +790,4 @@ Developing isn't my day job - I'm taking care of this integration solely on my f
 - [Trafiklab](https://www.trafiklab.se/) for providing the excellent public transport API
 - Home Assistant community for excellent development documentation
 - [HASL developers](https://github.com/hasl-sensor/) for the integration that basically provided the idea behind this integration
-- Claude Sonnet 4, for help sort things out whenever I'm a little out on the deep waters... Like I said - developing isn't my day job
+- Claude Sonnet & friends, for being quite helpful sort things out whenever I'm a little out on the deep waters... Like I said - developing isn't my day job 
