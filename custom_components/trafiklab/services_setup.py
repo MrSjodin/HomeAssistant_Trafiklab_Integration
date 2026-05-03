@@ -137,7 +137,7 @@ def _resolve_zone_coordinates(hass: HomeAssistant, value: str) -> str | None:
 
     # 2. Slugified match (handles multi-word names like "My Home" → zone.my_home)
     if state is None:
-        slug = re.sub(r"[^a-z0-9_]", "_", re.sub(r"\s+", "_", stripped.lower()))
+        slug = re.sub(r"[^a-z0-9]+", "_", stripped.lower()).strip("_")
         slugged = slug if slug.startswith("zone.") else f"zone.{slug}"
         if slugged != normalized:
             state = hass.states.get(slugged)
