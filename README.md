@@ -62,9 +62,9 @@ This integration is entirely community-developed and is not developed by, or in 
 
 ## Finding Your Stop ID
 
-Before you can configure any sensor, you need the **stop ID** for your location. Use the built-in `trafiklab.stop_lookup` service to find it — see [Stop ID Lookup Service](#stop-id-lookup-service) for full details.
+A **Stop ID** is required for **Realtime departure and arrival sensors**, and it is also one supported way to configure **Travel Search** sensors. Travel Search sensors and the `trafiklab.travel_search` service can also use coordinates, stop names, HA zones, or person/device_tracker entities. If you want to use a Stop ID, use the built-in `trafiklab.stop_lookup` service — see [Stop ID Lookup Service](#stop-id-lookup-service) for full details.
 
-**Quick steps:**
+**Quick steps to look up a Stop ID:**
 1. If you have no Trafiklab config entries yet, add this one-line stub to `configuration.yaml` and restart:
    ```yaml
    trafiklab:
