@@ -107,6 +107,11 @@
       "resrobot_travel": {
         "name": "Resesökning"
       }
+    },
+    "button": {
+      "update_now": {
+        "name": "Uppdatera nu"
+      }
     }
   },
   "selector": {
