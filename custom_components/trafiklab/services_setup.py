@@ -388,25 +388,35 @@ def async_setup_services(hass: HomeAssistant) -> None:
                         destination_type = "stop_id"
                         destination = resolved_destination
 
-                    products: int | None = None
+                    known_transport_modes = []
                     if transport_modes:
-                        known = [m for m in transport_modes if m in RESROBOT_PRODUCTS_MAP]
-                        if known:
-                            products = sum(RESROBOT_PRODUCTS_MAP[m] for m in known)
+                        known_transport_modes = [
+                            mode for mode in transport_modes if mode in RESROBOT_PRODUCTS_MAP
+                        ]
 
-                    result = await client.get_resrobot_travel_search(
-                        api_key,
-                        origin_type,
-                        origin,
-                        destination_type,
-                        destination,
-                        via,
-                        "",
-                        max_walking_distance,
-                        products,
-                    )
+                    product_requests: list[int | None]
+                    if known_transport_modes:
+                        product_requests = [
+                            RESROBOT_PRODUCTS_MAP[mode] for mode in known_transport_modes
+                        ]
+                    else:
+                        product_requests = [None]
 
-                    trips_raw = (result or {}).get("Trip") or []
+                    trips_raw: list[dict[str, Any]] = []
+                    for products in product_requests:
+                        result = await client.get_resrobot_travel_search(
+                            api_key,
+                            origin_type,
+                            origin,
+                            destination_type,
+                            destination,
+                            via,
+                            "",
+                            max_walking_distance,
+                            products,
+                        )
+                        trips_raw.extend((result or {}).get("Trip") or [])
+
                     trips = normalize_resrobot_trips(trips_raw, max_trip_duration)
                     response.update({"trips": trips, "total_trips": len(trips)})
                     return response
