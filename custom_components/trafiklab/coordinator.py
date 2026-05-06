@@ -23,8 +23,10 @@ from .const import (
     CONF_UPDATE_CONDITION,
     CONF_TRANSPORT_MODES,
     RESROBOT_PRODUCTS_MAP,
+    CONF_INCLUDE_PLATFORM,
+    DOMAIN,
+    CONF_API_KEY as _CONF_API_KEY,
 )
-from .api import TrafikLabApiClient
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 _LOGGER = logging.getLogger(__name__)
@@ -158,6 +160,13 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
                     data = self._normalize_resrobot_response(data)
                 except Exception as nerr:  # pragma: no cover - defensive
                     _LOGGER.debug("Resrobot normalize failed: %s", nerr)
+
+                # Platform enrichment — opt-in via include_platform option
+                if opts.get(CONF_INCLUDE_PLATFORM):
+                    try:
+                        data = await self._enrich_platform(data)
+                    except Exception as perr:
+                        _LOGGER.warning("Platform enrichment failed: %s", perr)
                 # Mark successful update time
                 from datetime import datetime, timezone
                 self.last_successful_update = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -262,3 +271,164 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
         normalized_trips.sort(key=trip_key)
         data["Trip"] = normalized_trips
         return data
+
+    async def _enrich_platform(self, data: dict) -> dict:
+        """Annotate each public-transport leg in *data* with ``_realtime_platform``.
+
+        Resolves a Realtime API key from any departure/arrival entry in hass.data,
+        then issues one Timetable API call per unique leg-origin stop ID (batched
+        concurrently). Each matching leg gets ``_realtime_platform`` set to the
+        platform designation string (empty string when no match found).
+        """
+        # Resolve Realtime API key from a departure/arrival sensor entry
+        realtime_key: str | None = None
+        domain_data: dict = self.hass.data.get(DOMAIN, {})
+        for coordinator in domain_data.values():
+            entry_type = (coordinator.entry.data.get(CONF_SENSOR_TYPE)
+                          if hasattr(coordinator, "entry") else None)
+            if entry_type in (SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL):
+                realtime_key = coordinator.entry.data.get(_CONF_API_KEY)
+                break
+
+        if not realtime_key:
+            _LOGGER.warning(
+                "include_platform is enabled but no departure/arrival sensor with a "
+                "Realtime API key was found. Platform information will not be included."
+            )
+            return data
+
+        trips: list = (data or {}).get("Trip") or []
+        await enrich_platform_for_trips(trips, realtime_key, self.api_client.session)
+        return data
+
+
+# ---------------------------------------------------------------------------
+# Module-level helper — shared by coordinator and services_setup
+# ---------------------------------------------------------------------------
+
+_NON_PT_TYPES: frozenset[str] = frozenset({"WALK", "TRSF"})
+
+
+async def enrich_platform_for_trips(
+    trips: list,
+    realtime_api_key: str,
+    session,
+) -> None:
+    """Annotate public-transport legs in *trips* with ``_realtime_platform``.
+
+    Modifies the raw Resrobot trip dicts in-place. Each public-transport leg
+    (type not in WALK/TRSF) whose ``Origin.extId`` is non-empty gets a
+    ``_realtime_platform`` key set to the platform designation string from the
+    Timetable Realtime API (empty string when no match is found).
+
+    Issues one Timetable API call per unique origin stop ID, batched concurrently,
+    each covering a 60-minute window starting from the earliest departure at that stop.
+    """
+    from datetime import datetime
+    from .api import TrafikLabApiClient
+
+    # ------------------------------------------------------------------
+    # 1. Collect unique stop IDs with earliest departure datetime
+    # ------------------------------------------------------------------
+    stop_earliest: dict[str, datetime] = {}
+
+    for trip in trips:
+        legs = (((trip or {}).get("LegList") or {}).get("Leg")) or []
+        if isinstance(legs, dict):
+            legs = [legs]
+        for leg in legs:
+            if str((leg or {}).get("type", "")).upper() in _NON_PT_TYPES:
+                continue
+            origin = (leg or {}).get("Origin") or {}
+            ext_id = origin.get("extId", "").strip()
+            if not ext_id:
+                continue
+            date_str = origin.get("date", "")
+            time_str = origin.get("time", "")
+            if not date_str or not time_str:
+                continue
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+                try:
+                    dep_dt = datetime.strptime(f"{date_str} {time_str[:8]}", fmt)
+                    break
+                except ValueError:
+                    dep_dt = None
+            if dep_dt is None:
+                continue
+            if ext_id not in stop_earliest or dep_dt < stop_earliest[ext_id]:
+                stop_earliest[ext_id] = dep_dt
+
+    if not stop_earliest:
+        return
+
+    # ------------------------------------------------------------------
+    # 2. Fetch Timetable departures for each unique stop concurrently
+    # ------------------------------------------------------------------
+    client = TrafikLabApiClient(realtime_api_key, session=session)
+
+    async def _fetch(stop_id: str, earliest: datetime):
+        time_str = earliest.strftime("%Y-%m-%dT%H:%M")
+        try:
+            result = await client.get_departures(stop_id, time_str)
+            return stop_id, result
+        except Exception as err:
+            _LOGGER.debug("Timetable call failed for stop %s: %s", stop_id, err)
+            return stop_id, {}
+
+    results = await asyncio.gather(
+        *[_fetch(sid, dt) for sid, dt in stop_earliest.items()]
+    )
+
+    # ------------------------------------------------------------------
+    # 3. Build per-stop lookup: {stop_id: {(designation, "HH:MM"): platform}}
+    # ------------------------------------------------------------------
+    stop_lookup: dict[str, dict[tuple[str, str], str]] = {}
+    for stop_id, result in results:
+        departures: list = (result or {}).get("departures") or []
+        lookup: dict[tuple[str, str], str] = {}
+        for dep in departures:
+            route = (dep or {}).get("route") or {}
+            designation = str(route.get("designation", "")).strip()
+            scheduled = dep.get("scheduled", "")
+            # scheduled is ISO8601; extract HH:MM
+            try:
+                hhmm = scheduled[11:16] if len(scheduled) >= 16 else ""
+            except Exception:
+                hhmm = ""
+            if not designation or not hhmm:
+                continue
+            platform_str = (
+                (dep.get("realtime_platform") or {}).get("designation")
+                or (dep.get("scheduled_platform") or {}).get("designation")
+                or ""
+            )
+            key = (designation, hhmm)
+            if key not in lookup:  # keep first match (ambiguity is rare)
+                lookup[key] = platform_str
+        stop_lookup[stop_id] = lookup
+
+    # ------------------------------------------------------------------
+    # 4. Annotate legs in the raw trip data
+    # ------------------------------------------------------------------
+    for trip in trips:
+        legs = (((trip or {}).get("LegList") or {}).get("Leg")) or []
+        if isinstance(legs, dict):
+            legs = [legs]
+        for leg in legs:
+            if str((leg or {}).get("type", "")).upper() in _NON_PT_TYPES:
+                continue
+            origin = (leg or {}).get("Origin") or {}
+            ext_id = origin.get("extId", "").strip()
+            if not ext_id or ext_id not in stop_lookup:
+                continue
+            # Match designation: prefer leg.number, fall back to product.displayNumber
+            product = (leg or {}).get("Product") or {}
+            if isinstance(product, list):
+                product = product[0] if product else {}
+            designation = str(
+                leg.get("number") or product.get("displayNumber") or product.get("num") or ""
+            ).strip()
+            time_str = origin.get("time", "")
+            hhmm = time_str[:5] if len(time_str) >= 5 else ""
+            platform = stop_lookup[ext_id].get((designation, hhmm), "")
+            leg["_realtime_platform"] = platform
