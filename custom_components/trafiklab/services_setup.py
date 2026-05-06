@@ -33,7 +33,9 @@ from .const import (
     SENSOR_TYPE_DEPARTURE,
     SENSOR_TYPE_ARRIVAL,
     SENSOR_TYPE_RESROBOT,
+    CONF_INCLUDE_PLATFORM,
 )
+from .coordinator import enrich_platform_for_trips
 from .sensor import normalize_resrobot_trips
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,6 +66,7 @@ TRAVEL_SEARCH_SCHEMA = vol.Schema({
     vol.Optional(CONF_MAX_TRIP_DURATION, default=None): vol.Any(
         None, vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))
     ),
+    vol.Optional(CONF_INCLUDE_PLATFORM, default=False): bool,
 })
 
 
@@ -358,6 +361,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
             max_walking_distance: int = call.data.get(CONF_MAX_WALKING_DISTANCE, 1000)
             transport_modes: list[str] = call.data.get(CONF_TRANSPORT_MODES) or []
             max_trip_duration: int | None = call.data.get(CONF_MAX_TRIP_DURATION)
+            include_platform: bool = bool(call.data.get(CONF_INCLUDE_PLATFORM, False))
 
             response: dict[str, Any] = {}
             session = async_get_clientsession(hass)
@@ -491,6 +495,21 @@ def async_setup_services(hass: HomeAssistant) -> None:
                             products,
                         )
                         trips_raw.extend((result or {}).get("Trip") or [])
+
+                    if include_platform:
+                        realtime_key = _resolve_realtime_api_key(hass, call.data)
+                        if realtime_key:
+                            try:
+                                await enrich_platform_for_trips(
+                                    trips_raw, realtime_key, session
+                                )
+                            except Exception as perr:
+                                _LOGGER.warning("Platform enrichment failed in travel_search: %s", perr)
+                        else:
+                            _LOGGER.warning(
+                                "include_platform requested but no Realtime API key available "
+                                "(add a departure/arrival sensor or pass api_key explicitly)"
+                            )
 
                     trips = normalize_resrobot_trips(trips_raw, max_trip_duration)
                     response.update({"trips": trips, "total_trips": len(trips)})
