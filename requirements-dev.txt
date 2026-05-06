@@ -2,7 +2,7 @@
 # pytest-homeassistant-custom-component pins exact compatible versions of pytest,
 # pytest-asyncio, and pytest-cov; do not add separate constraints for those packages
 # here or Dependabot's one-package-at-a-time bumps will conflict with phcc's pins.
-pytest-homeassistant-custom-component>=0.13.109
+pytest-homeassistant-custom-component>=0.13.328
 
 # Code quality
 black>=22.0.0
