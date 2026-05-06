@@ -23,6 +23,7 @@ This integration is entirely community-developed and is not developed by, or in 
   - [Update Now](#update-now-service)
   - [Stop ID Lookup](#stop-id-lookup-service)
 - [Dashboard & Lovelace Cards](#dashboard--lovelace-cards)
+- [Automation Examples](#automation-examples)
 - [Operators](#operators)
 - [API Documentation](#api-documentation)
 
