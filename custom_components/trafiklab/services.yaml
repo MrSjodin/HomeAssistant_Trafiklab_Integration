@@ -47,6 +47,17 @@ travel_search:
       selector:
         text:
           type: password
+    realtime_api_key:
+      name: Realtime API Key
+      description: >
+        Your Trafiklab Realtime (Timetable) API key, used only when include_platform is true.
+        Omit to auto-discover the key from a configured departure or arrival sensor.
+        Keeping this separate from api_key allows using different keys for Resrobot and
+        the Timetable Realtime API.
+      required: false
+      selector:
+        text:
+          type: password
     config_entry_id:
       name: Config entry ID
       description: Specific Trafiklab config entry to take the Resrobot API key from. Ignored when api_key is provided.
@@ -135,3 +146,14 @@ travel_search:
           min: 1
           max: 1440
           unit_of_measurement: min
+    include_platform:
+      name: Include platform
+      description: >
+        Cross-check each public-transport leg against the Timetable Realtime API to
+        resolve the departure platform. Requires a configured departure or arrival sensor
+        (for its Realtime API key), or pass api_key explicitly. One Timetable API call
+        per unique origin stop is made.
+      required: false
+      default: false
+      selector:
+        boolean:

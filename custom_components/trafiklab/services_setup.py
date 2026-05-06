@@ -33,7 +33,10 @@ from .const import (
     SENSOR_TYPE_DEPARTURE,
     SENSOR_TYPE_ARRIVAL,
     SENSOR_TYPE_RESROBOT,
+    CONF_INCLUDE_PLATFORM,
+    CONF_REALTIME_API_KEY,
 )
+from .coordinator import enrich_platform_for_trips
 from .sensor import normalize_resrobot_trips
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,6 +53,7 @@ UPDATE_NOW_SCHEMA = vol.Schema({
 
 TRAVEL_SEARCH_SCHEMA = vol.Schema({
     vol.Optional(CONF_API_KEY): cv.string,
+    vol.Optional(CONF_REALTIME_API_KEY): cv.string,
     vol.Optional("config_entry_id"): cv.string,
     vol.Required(CONF_ORIGIN): cv.string,
     vol.Required(CONF_DESTINATION): cv.string,
@@ -64,6 +68,7 @@ TRAVEL_SEARCH_SCHEMA = vol.Schema({
     vol.Optional(CONF_MAX_TRIP_DURATION, default=None): vol.Any(
         None, vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))
     ),
+    vol.Optional(CONF_INCLUDE_PLATFORM, default=False): bool,
 })
 
 
@@ -122,6 +127,27 @@ def _resolve_resrobot_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
         return coordinator.entry.data.get(CONF_API_KEY)
     for coordinator in domain_data.values():
         if coordinator.entry.data.get(CONF_SENSOR_TYPE) == SENSOR_TYPE_RESROBOT:
+            return coordinator.entry.data.get(CONF_API_KEY)
+    return None
+
+
+def _find_realtime_key_from_entries(hass: HomeAssistant) -> str | None:
+    """Return the Realtime API key from the first departure or arrival config entry.
+
+    "First" here means the first entry encountered during iteration over the
+    DOMAIN data dict (arbitrary / insertion order). Any departure or arrival
+    entry will work because they all carry the same type of Realtime API key.
+
+    Used by ``travel_search`` platform enrichment so the Resrobot ``api_key``
+    field is never mistaken for a Realtime/Timetable key.
+    """
+    domain_data: dict = hass.data.get(DOMAIN, {})
+    for coordinator in domain_data.values():
+        if (
+            hasattr(coordinator, "entry")
+            and coordinator.entry.data.get(CONF_SENSOR_TYPE)
+            in (SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL)
+        ):
             return coordinator.entry.data.get(CONF_API_KEY)
     return None
 
@@ -358,6 +384,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
             max_walking_distance: int = call.data.get(CONF_MAX_WALKING_DISTANCE, 1000)
             transport_modes: list[str] = call.data.get(CONF_TRANSPORT_MODES) or []
             max_trip_duration: int | None = call.data.get(CONF_MAX_TRIP_DURATION)
+            include_platform: bool = bool(call.data.get(CONF_INCLUDE_PLATFORM, False))
 
             response: dict[str, Any] = {}
             session = async_get_clientsession(hass)
@@ -491,6 +518,24 @@ def async_setup_services(hass: HomeAssistant) -> None:
                             products,
                         )
                         trips_raw.extend((result or {}).get("Trip") or [])
+
+                    if include_platform:
+                        realtime_key = (
+                            call.data.get(CONF_REALTIME_API_KEY)
+                            or _find_realtime_key_from_entries(hass)
+                        )
+                        if realtime_key:
+                            try:
+                                await enrich_platform_for_trips(
+                                    trips_raw, realtime_key, session
+                                )
+                            except Exception as perr:
+                                _LOGGER.warning("Platform enrichment failed in travel_search: %s", perr)
+                        else:
+                            _LOGGER.warning(
+                                "include_platform requested but no Realtime API key available "
+                                "(add a departure/arrival sensor or pass realtime_api_key explicitly)"
+                            )
 
                     trips = normalize_resrobot_trips(trips_raw, max_trip_duration)
                     response.update({"trips": trips, "total_trips": len(trips)})

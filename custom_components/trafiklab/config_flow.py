@@ -52,6 +52,7 @@ from .const import (
     CONF_MAX_WALKING_DISTANCE,
     CONF_MAX_TRIP_DURATION,
     CONF_TRANSPORT_MODES,
+    CONF_INCLUDE_PLATFORM,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -266,6 +267,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_TRANSPORT_MODES, default=[]): _TRANSPORT_MODES_SELECTOR,
             vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)),
             vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
+            vol.Optional(CONF_INCLUDE_PLATFORM, default=False): bool,
         })
 
         if user_input is not None:
@@ -315,6 +317,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_TRANSPORT_MODES: user_input.get(CONF_TRANSPORT_MODES, []),
                     "refresh_interval": refresh_interval,
                     "time_window": time_window,
+                    CONF_INCLUDE_PLATFORM: user_input.get(CONF_INCLUDE_PLATFORM, False),
                 }
                 # Unique ID should be stable and not include name which can change
                 unique_id = f"resrobot_{origin}_{destination}"
@@ -542,6 +545,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=1440)
             ),
+            vol.Optional(CONF_INCLUDE_PLATFORM, default=False): bool,
         })
         current_values = {**self._entry.data, **self._entry.options}
         # Normalize transport_modes: old entries may lack the key, have None stored,

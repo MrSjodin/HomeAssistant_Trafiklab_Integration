@@ -411,6 +411,8 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                     "duration": duration_minutes,
                     # Apply translation for category using Product labels or category_map fallback
                     "category": category_full,
+                    # Platform from Timetable API cross-check (empty when not enriched or no match)
+                    "platform": leg.get("_realtime_platform", ""),
                 }
                 # attach parsed dt for sorting
                 leg_dt = parse_dt(origin.get("date", ""), origin.get("time", ""))
