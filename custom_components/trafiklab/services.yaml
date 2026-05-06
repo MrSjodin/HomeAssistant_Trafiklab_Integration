@@ -135,3 +135,14 @@ travel_search:
           min: 1
           max: 1440
           unit_of_measurement: min
+    include_platform:
+      name: Include platform
+      description: >
+        Cross-check each public-transport leg against the Timetable Realtime API to
+        resolve the departure platform. Requires a configured departure or arrival sensor
+        (for its Realtime API key), or pass api_key explicitly. One Timetable API call
+        per unique origin stop is made.
+      required: false
+      default: false
+      selector:
+        boolean:
