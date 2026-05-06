@@ -134,6 +134,10 @@ def _resolve_resrobot_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
 def _find_realtime_key_from_entries(hass: HomeAssistant) -> str | None:
     """Return the Realtime API key from the first departure or arrival config entry.
 
+    "First" here means the first entry encountered during iteration over the
+    DOMAIN data dict (arbitrary / insertion order). Any departure or arrival
+    entry will work because they all carry the same type of Realtime API key.
+
     Used by ``travel_search`` platform enrichment so the Resrobot ``api_key``
     field is never mistaken for a Realtime/Timetable key.
     """

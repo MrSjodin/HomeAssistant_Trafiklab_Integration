@@ -310,7 +310,9 @@ _NON_PT_TYPES: frozenset[str] = frozenset({"WALK", "TRSF"})
 
 # Maximum number of concurrent Timetable API calls when enriching platforms.
 # Prevents bursting too many requests at once when a trip response contains
-# many unique origin stops.
+# many unique origin stops. 5 is a conservative ceiling that keeps the
+# request burst well within typical Trafiklab rate-limit budgets while still
+# providing useful parallelism for the common case (1-3 unique stops per trip).
 _PLATFORM_ENRICH_CONCURRENCY: int = 5
 
 
