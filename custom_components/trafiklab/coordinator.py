@@ -25,7 +25,6 @@ from .const import (
     RESROBOT_PRODUCTS_MAP,
     CONF_INCLUDE_PLATFORM,
     DOMAIN,
-    CONF_API_KEY as _CONF_API_KEY,
 )
 from .api import TrafikLabApiClient
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -288,7 +287,7 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
             entry_type = (coordinator.entry.data.get(CONF_SENSOR_TYPE)
                           if hasattr(coordinator, "entry") else None)
             if entry_type in (SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL):
-                realtime_key = coordinator.entry.data.get(_CONF_API_KEY)
+                realtime_key = coordinator.entry.data.get(CONF_API_KEY)
                 break
 
         if not realtime_key:
