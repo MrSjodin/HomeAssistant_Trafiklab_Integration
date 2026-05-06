@@ -7,7 +7,7 @@ pytest-cov>=4.0.0
 # Code quality
 black>=22.0.0
 isort>=8.0.1
-flake8>=5.0.0
+flake8>=7.3.0
 mypy>=1.20.2
 
 # Home Assistant
