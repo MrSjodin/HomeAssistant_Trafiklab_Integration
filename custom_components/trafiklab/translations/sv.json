@@ -168,10 +168,12 @@
           "max_trip_duration": "Maximal resetid (minuter, lämna tomt för ingen gräns)",
           "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
-          "refresh_interval": "Datauppdateringsintervall (sekunder)"
+          "refresh_interval": "Datauppdateringsintervall (sekunder)",
+          "include_platform": "Inkludera plattform (kors-kontroll mot Tidtabell Realtids-API)"
         },
         "data_description": {
-          "transport_modes": "Lämna tomt för att inkludera alla transportmedel. OBS: Om valt exkluderas gång- och bytessträckor från resultaten."
+          "transport_modes": "Lämna tomt för att inkludera alla transportmedel. OBS: Om valt exkluderas gång- och bytesssträckor från resultaten.",
+          "include_platform": "När aktiverat matchas varje kollektivtrafiksträcka mot Tidtabell Realtids-API för att hämta avgångsplattform. Kräver en konfigurerad avgångs- eller ankomstsensor. Ett extra API-anrop per unik ursprungshållplats görs vid varje uppdatering."
         }
       }
     }
