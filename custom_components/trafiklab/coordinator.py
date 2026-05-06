@@ -27,6 +27,7 @@ from .const import (
     DOMAIN,
     CONF_API_KEY as _CONF_API_KEY,
 )
+from .api import TrafikLabApiClient
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 _LOGGER = logging.getLogger(__name__)
@@ -325,7 +326,6 @@ async def enrich_platform_for_trips(
     each covering a 60-minute window starting from the earliest departure at that stop.
     """
     from datetime import datetime
-    from .api import TrafikLabApiClient
 
     # ------------------------------------------------------------------
     # 1. Collect unique stop IDs with earliest departure datetime
