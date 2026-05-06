@@ -41,10 +41,12 @@
           "max_trip_duration": "Maximum Trip Duration (minutes, leave empty for no limit)",
           "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
-          "refresh_interval": "Data Refresh Interval (seconds)"
+          "refresh_interval": "Data Refresh Interval (seconds)",
+          "include_platform": "Include platform (cross-checks Timetable Realtime API)"
         },
         "data_description": {
-          "transport_modes": "Leave empty to include all modes. Note: if set, walk and transfer legs will be excluded from results."
+          "transport_modes": "Leave empty to include all modes. Note: if set, walk and transfer legs will be excluded from results.",
+          "include_platform": "When enabled, each public-transport leg is matched against the Timetable Realtime API to resolve the departure platform. Requires a configured departure or arrival sensor. One extra API call per unique origin stop is made on each refresh."
         }
       },
       "sensor": {

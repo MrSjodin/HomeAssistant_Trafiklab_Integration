@@ -27,6 +27,7 @@ CONF_MAX_WALKING_DISTANCE: Final = "max_walking_distance"
 CONF_MAX_TRIP_DURATION: Final = "max_trip_duration"
 CONF_TRANSPORT_MODES: Final = "transport_modes"
 CONF_INCLUDE_PLATFORM: Final = "include_platform"
+CONF_REALTIME_API_KEY: Final = "realtime_api_key"
 
 
 # Sensor types

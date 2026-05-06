@@ -308,6 +308,11 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
 
 _NON_PT_TYPES: frozenset[str] = frozenset({"WALK", "TRSF"})
 
+# Maximum number of concurrent Timetable API calls when enriching platforms.
+# Prevents bursting too many requests at once when a trip response contains
+# many unique origin stops.
+_PLATFORM_ENRICH_CONCURRENCY: int = 5
+
 
 async def enrich_platform_for_trips(
     trips: list,
@@ -362,17 +367,20 @@ async def enrich_platform_for_trips(
 
     # ------------------------------------------------------------------
     # 2. Fetch Timetable departures for each unique stop concurrently
+    #    (concurrency capped by semaphore to avoid request bursts)
     # ------------------------------------------------------------------
     client = TrafikLabApiClient(realtime_api_key, session=session)
+    semaphore = asyncio.Semaphore(_PLATFORM_ENRICH_CONCURRENCY)
 
     async def _fetch(stop_id: str, earliest: datetime):
-        time_str = earliest.strftime("%Y-%m-%dT%H:%M")
-        try:
-            result = await client.get_departures(stop_id, time_str)
-            return stop_id, result
-        except Exception as err:
-            _LOGGER.debug("Timetable call failed for stop %s: %s", stop_id, err)
-            return stop_id, {}
+        async with semaphore:
+            time_str = earliest.strftime("%Y-%m-%dT%H:%M")
+            try:
+                result = await client.get_departures(stop_id, time_str)
+                return stop_id, result
+            except Exception as err:
+                _LOGGER.debug("Timetable call failed for stop %s: %s", stop_id, err)
+                return stop_id, {}
 
     results = await asyncio.gather(
         *[_fetch(sid, dt) for sid, dt in stop_earliest.items()]

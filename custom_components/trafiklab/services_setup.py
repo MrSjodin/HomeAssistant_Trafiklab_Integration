@@ -34,6 +34,7 @@ from .const import (
     SENSOR_TYPE_ARRIVAL,
     SENSOR_TYPE_RESROBOT,
     CONF_INCLUDE_PLATFORM,
+    CONF_REALTIME_API_KEY,
 )
 from .coordinator import enrich_platform_for_trips
 from .sensor import normalize_resrobot_trips
@@ -52,6 +53,7 @@ UPDATE_NOW_SCHEMA = vol.Schema({
 
 TRAVEL_SEARCH_SCHEMA = vol.Schema({
     vol.Optional(CONF_API_KEY): cv.string,
+    vol.Optional(CONF_REALTIME_API_KEY): cv.string,
     vol.Optional("config_entry_id"): cv.string,
     vol.Required(CONF_ORIGIN): cv.string,
     vol.Required(CONF_DESTINATION): cv.string,
@@ -125,6 +127,23 @@ def _resolve_resrobot_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
         return coordinator.entry.data.get(CONF_API_KEY)
     for coordinator in domain_data.values():
         if coordinator.entry.data.get(CONF_SENSOR_TYPE) == SENSOR_TYPE_RESROBOT:
+            return coordinator.entry.data.get(CONF_API_KEY)
+    return None
+
+
+def _find_realtime_key_from_entries(hass: HomeAssistant) -> str | None:
+    """Return the Realtime API key from the first departure or arrival config entry.
+
+    Used by ``travel_search`` platform enrichment so the Resrobot ``api_key``
+    field is never mistaken for a Realtime/Timetable key.
+    """
+    domain_data: dict = hass.data.get(DOMAIN, {})
+    for coordinator in domain_data.values():
+        if (
+            hasattr(coordinator, "entry")
+            and coordinator.entry.data.get(CONF_SENSOR_TYPE)
+            in (SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL)
+        ):
             return coordinator.entry.data.get(CONF_API_KEY)
     return None
 
@@ -497,7 +516,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
                         trips_raw.extend((result or {}).get("Trip") or [])
 
                     if include_platform:
-                        realtime_key = _resolve_realtime_api_key(hass, call.data)
+                        realtime_key = (
+                            call.data.get(CONF_REALTIME_API_KEY)
+                            or _find_realtime_key_from_entries(hass)
+                        )
                         if realtime_key:
                             try:
                                 await enrich_platform_for_trips(
@@ -508,7 +530,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                         else:
                             _LOGGER.warning(
                                 "include_platform requested but no Realtime API key available "
-                                "(add a departure/arrival sensor or pass api_key explicitly)"
+                                "(add a departure/arrival sensor or pass realtime_api_key explicitly)"
                             )
 
                     trips = normalize_resrobot_trips(trips_raw, max_trip_duration)
