@@ -19,11 +19,11 @@ This integration is entirely community-developed and is not developed by, or in 
 - [Configuration](#configuration)
 - [Sensors](#sensors)
 - [Services](#services)
-  - [Stop ID Lookup](#stop-id-lookup-service)
-  - [Update Now](#update-now-service)
   - [Travel Search](#travel-search-service)
-- [Automation Examples](#automation-examples)
+  - [Update Now](#update-now-service)
+  - [Stop ID Lookup](#stop-id-lookup-service)
 - [Dashboard & Lovelace Cards](#dashboard--lovelace-cards)
+- [Automation Examples](#automation-examples)
 - [Operators](#operators)
 - [API Documentation](#api-documentation)
 
@@ -421,89 +421,6 @@ automation:
 
 ## Services
 
-### Stop ID Lookup Service
-
-Before you can configure a departure, arrival, or travel search sensor you need the **stop ID** for your location. The `trafiklab.stop_lookup` service lets you find it directly from Home Assistant without leaving the UI.
-
-#### Getting started — before your first sensor
-
-The service registers as soon as the integration is loaded. If you haven't added any Trafiklab config entry yet, add a one-line YAML stub so the integration loads on startup:
-
-```yaml
-# configuration.yaml
-trafiklab:
-```
-
-Restart Home Assistant, then open **Developer Tools → Services**, search for `trafiklab.stop_lookup`, and call it with your Realtime API key and a search string.
-
-#### Calling the service
-
-```yaml
-service: trafiklab.stop_lookup
-data:
-  api_key: "your_realtime_api_key"  # required the first time; optional once a departure/arrival sensor exists
-  search_query: "Stockholm"
-```
-
-**`api_key`** is your [Trafiklab Realtime API key](https://www.trafiklab.se/). Once you have at least one departure or arrival sensor configured, the key is resolved automatically and you can omit this field entirely.
-
-#### Response
-
-```yaml
-search_query: "Stockholm"
-total_stops: 3
-stops_found:
-  - id: "740098000"     # ← copy this value as the Stop ID when setting up a sensor
-    name: "Stockholm"
-    area_type: "META_STOP"
-    transport_modes: ["BUS", "TRAIN", "TRAM", "METRO"]
-    average_daily_departures: 3198.92
-    child_stops:
-      - id: "1"
-        name: "Stockholm Centralstation"
-        lat: 59.331537
-        lon: 18.054943
-```
-
-Use the `id` value from `stops_found` as the **Stop ID** (or **Origin / Destination** for Travel Search) when creating a sensor. The area-level ID (e.g. `740098000`) covers all platforms at that location and is usually what you want.
-
-> **Tip:** If your search returns many results, add more of the stop name to narrow it down — e.g. `"Stockholms centralstation"` instead of `"Stockholm"`.
-
----
-
-### Update Now Service
-
-Force an immediate data refresh for one or all configured sensors. Useful in automations that react to events (arrivals home, alarm clock, etc.) and need fresh data right away.
-
-```yaml
-# Refresh all Trafiklab sensors at once
-service: trafiklab.update_now
-```
-
-```yaml
-# Refresh a single sensor by its config entry ID
-service: trafiklab.update_now
-data:
-  config_entry_id: "your_entry_id"
-```
-
-The `config_entry_id` is shown in **Settings → Devices & Services → Trafiklab → (entry) → Info**. Omit it to refresh every active Trafiklab entry.
-
-#### Automation example
-
-```yaml
-automation:
-  - alias: "Refresh departures when arriving home"
-    trigger:
-      - platform: state
-        entity_id: person.john
-        to: "home"
-    action:
-      - service: trafiklab.update_now
-```
-
----
-
 ### Travel Search Service
 
 Query Resrobot for a journey on demand — no permanent sensor required. Returns normalised trips directly as a service response. Requires a **Resrobot API key** (separate from the Realtime key).
@@ -609,6 +526,39 @@ trips:
 
 If an error occurs (bad API key, unresolvable stop name, etc.) the response contains `trips: []`, `total_trips: 0`, and an `error` field with a description.
 
+---
+
+### Update Now Service
+
+Force an immediate data refresh for one or all configured sensors. Useful in automations that react to events (arrivals home, alarm clock, etc.) and need fresh data right away.
+
+```yaml
+# Refresh all Trafiklab sensors at once
+service: trafiklab.update_now
+```
+
+```yaml
+# Refresh a single sensor by its config entry ID
+service: trafiklab.update_now
+data:
+  config_entry_id: "your_entry_id"
+```
+
+The `config_entry_id` is shown in **Settings → Devices & Services → Trafiklab → (entry) → Info**. Omit it to refresh every active Trafiklab entry.
+
+#### Automation example
+
+```yaml
+automation:
+  - alias: "Refresh departures when arriving home"
+    trigger:
+      - platform: state
+        entity_id: person.john
+        to: "home"
+    action:
+      - service: trafiklab.update_now
+```
+
 #### Automation example — notify on journey options
 
 ```yaml
@@ -635,6 +585,56 @@ automation:
             Next departs at
             {{ journey.trips[0].legs[0].origin_time }}.
 ```
+
+---
+
+### Stop ID Lookup Service
+
+Before you can configure a departure, arrival, or travel search sensor you need the **stop ID** for your location. The `trafiklab.stop_lookup` service lets you find it directly from Home Assistant without leaving the UI.
+
+#### Getting started — before your first sensor
+
+The service registers as soon as the integration is loaded. If you haven't added any Trafiklab config entry yet, add a one-line YAML stub so the integration loads on startup:
+
+```yaml
+# configuration.yaml
+trafiklab:
+```
+
+Restart Home Assistant, then open **Developer Tools → Services**, search for `trafiklab.stop_lookup`, and call it with your Realtime API key and a search string.
+
+#### Calling the service
+
+```yaml
+service: trafiklab.stop_lookup
+data:
+  api_key: "your_realtime_api_key"  # required the first time; optional once a departure/arrival sensor exists
+  search_query: "Stockholm"
+```
+
+**`api_key`** is your [Trafiklab Realtime API key](https://www.trafiklab.se/). Once you have at least one departure or arrival sensor configured, the key is resolved automatically and you can omit this field entirely.
+
+#### Response
+
+```yaml
+search_query: "Stockholm"
+total_stops: 3
+stops_found:
+  - id: "740098000"     # ← copy this value as the Stop ID when setting up a sensor
+    name: "Stockholm"
+    area_type: "META_STOP"
+    transport_modes: ["BUS", "TRAIN", "TRAM", "METRO"]
+    average_daily_departures: 3198.92
+    child_stops:
+      - id: "1"
+        name: "Stockholm Centralstation"
+        lat: 59.331537
+        lon: 18.054943
+```
+
+Use the `id` value from `stops_found` as the **Stop ID** (or **Origin / Destination** for Travel Search) when creating a sensor. The area-level ID (e.g. `740098000`) covers all platforms at that location and is usually what you want.
+
+> **Tip:** If your search returns many results, add more of the stop name to narrow it down — e.g. `"Stockholms centralstation"` instead of `"Stockholm"`.
 
 ---
 
