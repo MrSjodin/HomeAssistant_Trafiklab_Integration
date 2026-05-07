@@ -643,6 +643,7 @@ Use the `id` value from `stops_found` as the **Stop ID** (or **Origin / Destinat
 There are companion dashboard cards designed for this integration:
 - [Timetable card](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Timetable_Card) — shows upcoming departures/arrivals in a timetable layout
 - [Travel Search card](https://github.com/MrSjodin/HomeAssistant_Trafiklab_TravelSearch_Card) — shows journey results from a Travel Search sensor
+- [Dynamic Travel Search card](https://github.com/MrSjodin/HomeAssistant_Trafiklab_DynamicTravelSearch_Card) — search ad-hoc for an end-to-end travel, to and from My Location, Stops, HA Zones and Persons
 
 ### Built-in Lovelace Card Examples
 
