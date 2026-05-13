@@ -34,6 +34,7 @@ async def test_flow_user_selects_departure_and_configures_stop(hass: HomeAssista
             result["flow_id"],
             {"stop_id": "740098000", "line_filter": "52", "direction": "Central", "time_window": 60, "refresh_interval": 300},
         )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert result["data"]["api_key"] == "key"
@@ -70,6 +71,7 @@ async def test_flow_user_resrobot_path(hass: HomeAssistant, enable_custom_integr
                 "time_window": 60,
             },
         )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert result["data"]["sensor_type"] == "resrobot_travel_search"
@@ -160,6 +162,7 @@ async def test_flow_departure_arrival_transport_modes_stored_in_options(hass: Ho
                 "update_condition": "",
             },
         )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert result["options"]["transport_modes"] == ["bus"]
@@ -217,6 +220,7 @@ async def test_flow_departure_arrival_no_transport_modes_defaults_to_empty(hass:
                 "update_condition": "",
             },
         )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert result["options"].get("transport_modes", []) == []
