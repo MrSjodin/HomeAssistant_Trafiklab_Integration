@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from typing import Any
 
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -110,8 +110,8 @@ async def test_update_now_specific_entry(hass: HomeAssistant) -> None:
 
 @pytest.mark.asyncio
 async def test_update_now_invalid_entry_id(hass: HomeAssistant, setup_integration: bool) -> None:
-    """update_now with a non-existent entry_id raises ServiceValidationError."""
-    with pytest.raises(ServiceValidationError):
+    """update_now with a non-existent entry_id raises HomeAssistantError."""
+    with pytest.raises(HomeAssistantError):
         await hass.services.async_call(
             DOMAIN,
             SERVICE_UPDATE_NOW,
@@ -355,8 +355,8 @@ async def test_stop_lookup_key_resolved_from_departure_entry(hass: HomeAssistant
 
 @pytest.mark.asyncio
 async def test_stop_lookup_rejects_unknown_config_entry_id(hass: HomeAssistant, setup_integration: bool) -> None:
-    """stop_lookup raises ServiceValidationError for an unknown config_entry_id."""
-    with pytest.raises(ServiceValidationError, match="not found"):
+    """stop_lookup raises HomeAssistantError for an unknown config_entry_id."""
+    with pytest.raises(HomeAssistantError, match="not found"):
         await hass.services.async_call(
             DOMAIN,
             SERVICE_STOP_LOOKUP,
@@ -368,7 +368,7 @@ async def test_stop_lookup_rejects_unknown_config_entry_id(hass: HomeAssistant, 
 
 @pytest.mark.asyncio
 async def test_stop_lookup_rejects_resrobot_config_entry_id(hass: HomeAssistant) -> None:
-    """stop_lookup raises ServiceValidationError when a Resrobot entry_id is supplied."""
+    """stop_lookup raises HomeAssistantError when a Resrobot entry_id is supplied."""
     from tests.components.trafiklab.const import ENTRY_DATA_RESROBOT, ENTRY_OPTIONS_DEFAULT
 
     entry = MockConfigEntry(
@@ -386,7 +386,7 @@ async def test_stop_lookup_rejects_resrobot_config_entry_id(hass: HomeAssistant)
         await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-    with pytest.raises(ServiceValidationError, match="not a departure or arrival entry"):
+    with pytest.raises(HomeAssistantError, match="not a departure or arrival entry"):
         await hass.services.async_call(
             DOMAIN,
             SERVICE_STOP_LOOKUP,

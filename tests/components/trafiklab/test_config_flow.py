@@ -11,6 +11,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.trafiklab.const import DOMAIN
 from custom_components.trafiklab.config_flow import CannotConnect, InvalidApiKey, InvalidStopId
 
+_PATCH_COORDINATOR = "custom_components.trafiklab.coordinator.TrafikLabCoordinator._async_update_data"
+
 
 @pytest.mark.asyncio
 async def test_flow_user_selects_departure_and_configures_stop(hass: HomeAssistant, enable_custom_integrations: None) -> None:
@@ -25,12 +27,14 @@ async def test_flow_user_selects_departure_and_configures_stop(hass: HomeAssista
     assert result["type"] == "form"
     assert result["step_id"] == "departure_arrival"
 
-    # Validate helper is called and succeeds
-    with patch("custom_components.trafiklab.config_flow.validate_input", return_value={"title": "My Stop"}):
+    # Validate helper is called and succeeds; also mock coordinator to prevent real HTTP calls
+    with patch("custom_components.trafiklab.config_flow.validate_input", return_value={"title": "My Stop"}), \
+         patch(_PATCH_COORDINATOR, return_value={}):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {"stop_id": "740098000", "line_filter": "52", "direction": "Central", "time_window": 60, "refresh_interval": 300},
         )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert result["data"]["api_key"] == "key"
@@ -51,21 +55,23 @@ async def test_flow_user_resrobot_path(hass: HomeAssistant, enable_custom_integr
     assert result["type"] == "form"
     assert result["step_id"] == "resrobot"
 
-    # Provide details and finish
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {
-            "origin_type": "stop_id",
-            "origin": "740000001",
-            "destination_type": "stop_id",
-            "destination": "740000002",
-            "via": "",
-            "avoid": "",
-            "max_walking_distance": 1000,
-            "refresh_interval": 300,
-            "time_window": 60,
-        },
-    )
+    # Provide details and finish; also mock coordinator to prevent real HTTP calls
+    with patch(_PATCH_COORDINATOR, return_value={}):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                "origin_type": "stop_id",
+                "origin": "740000001",
+                "destination_type": "stop_id",
+                "destination": "740000002",
+                "via": "",
+                "avoid": "",
+                "max_walking_distance": 1000,
+                "refresh_interval": 300,
+                "time_window": 60,
+            },
+        )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert result["data"]["sensor_type"] == "resrobot_travel_search"
@@ -142,7 +148,8 @@ async def test_flow_departure_arrival_transport_modes_stored_in_options(hass: Ho
     )
     assert result["step_id"] == "departure_arrival"
 
-    with patch("custom_components.trafiklab.config_flow.validate_input", return_value={"title": "Bus Only"}):
+    with patch("custom_components.trafiklab.config_flow.validate_input", return_value={"title": "Bus Only"}), \
+         patch(_PATCH_COORDINATOR, return_value={}):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
@@ -155,6 +162,7 @@ async def test_flow_departure_arrival_transport_modes_stored_in_options(hass: Ho
                 "update_condition": "",
             },
         )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert result["options"]["transport_modes"] == ["bus"]
@@ -199,7 +207,8 @@ async def test_flow_departure_arrival_no_transport_modes_defaults_to_empty(hass:
         {"sensor_type": "departure", "api_key": "key", "name": "All Modes"},
     )
 
-    with patch("custom_components.trafiklab.config_flow.validate_input", return_value={"title": "All Modes"}):
+    with patch("custom_components.trafiklab.config_flow.validate_input", return_value={"title": "All Modes"}), \
+         patch(_PATCH_COORDINATOR, return_value={}):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
@@ -211,6 +220,7 @@ async def test_flow_departure_arrival_no_transport_modes_defaults_to_empty(hass:
                 "update_condition": "",
             },
         )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert result["options"].get("transport_modes", []) == []

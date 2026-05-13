@@ -7,7 +7,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -87,11 +87,11 @@ def _resolve_realtime_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
     if entry_id:
         coordinator = domain_data.get(entry_id)
         if coordinator is None:
-            raise ServiceValidationError(
+            raise HomeAssistantError(
                 f"Config entry '{entry_id}' was not found for {DOMAIN}."
             )
         if coordinator.entry.data.get(CONF_SENSOR_TYPE) not in (SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL):
-            raise ServiceValidationError(
+            raise HomeAssistantError(
                 f"Config entry '{entry_id}' is not a departure or arrival entry — "
                 "only departure/arrival entries carry a Realtime API key."
             )
@@ -117,11 +117,11 @@ def _resolve_resrobot_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
     if entry_id:
         coordinator = domain_data.get(entry_id)
         if coordinator is None:
-            raise ServiceValidationError(
+            raise HomeAssistantError(
                 f"Config entry '{entry_id}' was not found for {DOMAIN}."
             )
         if coordinator.entry.data.get(CONF_SENSOR_TYPE) != SENSOR_TYPE_RESROBOT:
-            raise ServiceValidationError(
+            raise HomeAssistantError(
                 f"Config entry '{entry_id}' is not a Resrobot travel-search entry."
             )
         return coordinator.entry.data.get(CONF_API_KEY)
@@ -346,7 +346,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         if entry_id is not None:
             coordinator = domain_data.get(entry_id)
             if coordinator is None:
-                raise ServiceValidationError(
+                raise HomeAssistantError(
                     f"No active Trafiklab config entry with id '{entry_id}'"
                 )
             await coordinator.async_request_refresh()
