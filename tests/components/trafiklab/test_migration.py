@@ -56,7 +56,11 @@ async def test_migrate_entry_v1_to_v2_persists_version_without_data_changes(hass
     )
     entry.add_to_hass(hass)
 
-    with patch.object(hass.config_entries, "async_update_entry", wraps=hass.config_entries.async_update_entry) as mock_update_entry:
+    with patch.object(
+        hass.config_entries,
+        "async_update_entry",
+        wraps=hass.config_entries.async_update_entry,
+    ) as mock_update_entry:
         ok = await async_migrate_entry(hass, entry)
 
     assert ok is True

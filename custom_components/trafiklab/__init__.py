@@ -116,6 +116,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool: 
         hass.config_entries.async_update_entry(entry, data=data, options=options)
         if changed:
             _LOGGER.debug("Migrated Trafiklab entry %s to version 2 (moved mutable keys to options)", entry.entry_id)
+        else:
+            _LOGGER.debug("Migrated Trafiklab entry %s to version 2", entry.entry_id)
         return True
 
     # For already-migrated entries: normalise transport_modes in options in-place
