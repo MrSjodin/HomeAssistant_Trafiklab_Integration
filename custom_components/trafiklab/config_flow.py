@@ -18,7 +18,13 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
-from .api import TrafikLabApiClient, TrafikLabApiError
+from .api import (
+    TrafikLabApiClient,
+    TrafikLabApiError,
+    TrafikLabAuthError,
+    TrafikLabQuotaError,
+    TrafikLabNotFoundError,
+)
 
 from .const import (
     DOMAIN,
@@ -148,6 +154,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         errors["api_key"] = "invalid_api_key"
                     except InvalidStopId:
                         errors["stop_id"] = "invalid_stop_id"
+                    except QuotaExceeded:
+                        errors["base"] = "quota_exceeded"
                     except CannotConnect:
                         errors["base"] = "cannot_connect"
                     except Exception as err:  # pragma: no cover
@@ -200,6 +208,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["api_key"] = "invalid_api_key"
             except InvalidStopId:
                 errors["stop_id"] = "invalid_stop_id"
+            except QuotaExceeded:
+                errors["base"] = "quota_exceeded"
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except Exception as err:
@@ -297,6 +307,25 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["origin"] = "invalid_coordinates"
             if destination_type == "coordinates" and not valid_coords(destination):
                 errors["destination"] = "invalid_coordinates"
+
+            if not errors:
+                # Probe Resrobot API to validate the key before saving
+                from homeassistant.helpers.aiohttp_client import async_get_clientsession
+                _probe_client = TrafikLabApiClient(
+                    self._api_key, session=async_get_clientsession(self.hass)
+                )
+                try:
+                    await _probe_client.search_resrobot_stops("Stockholm", self._api_key)
+                except TrafikLabAuthError:
+                    errors["base"] = "invalid_api_key"
+                except TrafikLabQuotaError:
+                    errors["base"] = "quota_exceeded"
+                except TrafikLabApiError:
+                    errors["base"] = "cannot_connect"
+                except Exception:  # pragma: no cover
+                    errors["base"] = "cannot_connect"
+                finally:
+                    await _probe_client.close()
 
             if not errors:
                 # Store config and create entry
@@ -413,6 +442,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["api_key"] = "invalid_api_key"
             except InvalidStopId:
                 errors["stop_id"] = "invalid_stop_id"
+            except QuotaExceeded:
+                errors["base"] = "quota_exceeded"
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except Exception as err:
@@ -455,6 +486,25 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors[CONF_ORIGIN] = "invalid_coordinates"
             if user_input.get(CONF_DESTINATION_TYPE) == "coordinates" and not valid_coords(user_input.get(CONF_DESTINATION, "")):
                 errors[CONF_DESTINATION] = "invalid_coordinates"
+
+            if not errors:
+                # Probe Resrobot API to validate the key before saving
+                from homeassistant.helpers.aiohttp_client import async_get_clientsession
+                _probe_client = TrafikLabApiClient(
+                    user_input[CONF_API_KEY], session=async_get_clientsession(self.hass)
+                )
+                try:
+                    await _probe_client.search_resrobot_stops("Stockholm", user_input[CONF_API_KEY])
+                except TrafikLabAuthError:
+                    errors["base"] = "invalid_api_key"
+                except TrafikLabQuotaError:
+                    errors["base"] = "quota_exceeded"
+                except TrafikLabApiError:
+                    errors["base"] = "cannot_connect"
+                except Exception:  # pragma: no cover
+                    errors["base"] = "cannot_connect"
+                finally:
+                    await _probe_client.close()
 
             if not errors:
                 return self.async_update_reload_and_abort(
@@ -577,6 +627,10 @@ class InvalidStopId(HomeAssistantError):
     """Error to indicate the stop id is invalid."""
 
 
+class QuotaExceeded(HomeAssistantError):
+    """Error to indicate the API quota has been exceeded."""
+
+
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect.
 
@@ -591,12 +645,13 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     try:
         # Attempt a lightweight departures fetch to validate both key & stop.
         await client.get_departures(stop_id)
+    except TrafikLabAuthError as err:
+        raise InvalidApiKey from err
+    except TrafikLabNotFoundError as err:
+        raise InvalidStopId from err
+    except TrafikLabQuotaError as err:
+        raise QuotaExceeded from err
     except TrafikLabApiError as err:
-        lower = str(err).lower()
-        if "invalid api key" in lower or "authentication failed" in lower:
-            raise InvalidApiKey from err
-        if "not found" in lower or "stop id" in lower:
-            raise InvalidStopId from err
         raise CannotConnect from err
     except Exception as err:  # pragma: no cover - network/aio edge case
         raise CannotConnect from err
