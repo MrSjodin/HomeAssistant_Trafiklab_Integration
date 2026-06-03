@@ -9,7 +9,8 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.trafiklab.const import DOMAIN
-from custom_components.trafiklab.config_flow import CannotConnect, InvalidApiKey, InvalidStopId
+from custom_components.trafiklab.config_flow import CannotConnect, InvalidApiKey, InvalidStopId, QuotaExceeded
+from custom_components.trafiklab.api import TrafikLabAuthError, TrafikLabNotFoundError, TrafikLabQuotaError, TrafikLabApiError
 
 _PATCH_COORDINATOR = "custom_components.trafiklab.coordinator.TrafikLabCoordinator._async_update_data"
 
@@ -56,7 +57,9 @@ async def test_flow_user_resrobot_path(hass: HomeAssistant, enable_custom_integr
     assert result["step_id"] == "resrobot"
 
     # Provide details and finish; also mock coordinator to prevent real HTTP calls
-    with patch(_PATCH_COORDINATOR, return_value={}):
+    _PATCH_RESROBOT_PROBE = "custom_components.trafiklab.api.TrafikLabApiClient.search_resrobot_stops"
+    with patch(_PATCH_COORDINATOR, return_value={}), \
+         patch(_PATCH_RESROBOT_PROBE, return_value={"StopLocation": []}):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
@@ -178,21 +181,24 @@ async def test_flow_resrobot_transport_modes_stored_in_options(hass: HomeAssista
     )
     assert result["step_id"] == "resrobot"
 
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {
-            "origin_type": "stop_id",
-            "origin": "740000001",
-            "destination_type": "stop_id",
-            "destination": "740000002",
-            "via": "",
-            "avoid": "",
-            "max_walking_distance": 1000,
-            "transport_modes": ["train", "metro"],
-            "refresh_interval": 300,
-            "time_window": 60,
-        },
-    )
+    with patch("custom_components.trafiklab.api.TrafikLabApiClient.search_resrobot_stops", return_value={"StopLocation": []}), \
+         patch(_PATCH_COORDINATOR, return_value={}):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                "origin_type": "stop_id",
+                "origin": "740000001",
+                "destination_type": "stop_id",
+                "destination": "740000002",
+                "via": "",
+                "avoid": "",
+                "max_walking_distance": 1000,
+                "transport_modes": ["train", "metro"],
+                "refresh_interval": 300,
+                "time_window": 60,
+            },
+        )
+        await hass.async_block_till_done()
 
     assert result["type"] == "create_entry"
     assert set(result["options"]["transport_modes"]) == {"train", "metro"}
@@ -255,4 +261,93 @@ async def test_options_flow_clear_line_filter(hass: HomeAssistant, enable_custom
     assert result["type"] == "create_entry"
     assert result["data"]["line_filter"] == ""
     assert result["data"]["direction"] == "Cent"
+
+
+# ---------------------------------------------------------------------------
+# New error-handling tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_validate_input_maps_auth_error_to_invalid_api_key(hass: HomeAssistant, enable_custom_integrations: None) -> None:
+    """TrafikLabAuthError from the API client must be re-raised as InvalidApiKey."""
+    from custom_components.trafiklab.config_flow import validate_input
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        side_effect=TrafikLabAuthError("access denied", error_code="API_AUTH", http_status=403),
+    ):
+        with pytest.raises(InvalidApiKey):
+            await validate_input(hass, {"api_key": "bad-key", "stop_id": "740098000"})
+
+
+@pytest.mark.asyncio
+async def test_validate_input_maps_not_found_to_invalid_stop_id(hass: HomeAssistant, enable_custom_integrations: None) -> None:
+    """TrafikLabNotFoundError from the API client must be re-raised as InvalidStopId."""
+    from custom_components.trafiklab.config_flow import validate_input
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        side_effect=TrafikLabNotFoundError("stop not found", http_status=404),
+    ):
+        with pytest.raises(InvalidStopId):
+            await validate_input(hass, {"api_key": "key", "stop_id": "000000"})
+
+
+@pytest.mark.asyncio
+async def test_validate_input_maps_quota_error_to_quota_exceeded(hass: HomeAssistant, enable_custom_integrations: None) -> None:
+    """TrafikLabQuotaError from the API client must be re-raised as QuotaExceeded."""
+    from custom_components.trafiklab.config_flow import validate_input
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        side_effect=TrafikLabQuotaError("quota exceeded", http_status=429),
+    ):
+        with pytest.raises(QuotaExceeded):
+            await validate_input(hass, {"api_key": "key", "stop_id": "740098000"})
+
+
+@pytest.mark.asyncio
+async def test_flow_quota_exceeded_shows_correct_error(hass: HomeAssistant, enable_custom_integrations: None) -> None:
+    """quota_exceeded error key must appear on errors['base'] when QuotaExceeded is raised."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"sensor_type": "departure", "api_key": "key", "name": "Stop"},
+    )
+    with patch("custom_components.trafiklab.config_flow.validate_input", side_effect=QuotaExceeded()):
+        result_err = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"stop_id": "740098000"}
+        )
+    assert result_err["type"] == "form"
+    assert result_err["errors"].get("base") == "quota_exceeded"
+
+
+@pytest.mark.asyncio
+async def test_resrobot_step_auth_error_shows_invalid_api_key(hass: HomeAssistant, enable_custom_integrations: None) -> None:
+    """A TrafikLabAuthError from the Resrobot probe must show invalid_api_key on errors['base']."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"sensor_type": "resrobot_travel_search", "api_key": "bad-key", "name": "Trip"},
+    )
+    assert result["step_id"] == "resrobot"
+
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.search_resrobot_stops",
+        side_effect=TrafikLabAuthError("access denied", http_status=401),
+    ):
+        result_err = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                "origin_type": "stop_id",
+                "origin": "740000001",
+                "destination_type": "stop_id",
+                "destination": "740000002",
+                "via": "",
+                "avoid": "",
+                "max_walking_distance": 1000,
+                "refresh_interval": 300,
+                "time_window": 60,
+            },
+        )
+
+    assert result_err["type"] == "form"
+    assert result_err["errors"].get("base") == "invalid_api_key"
 
