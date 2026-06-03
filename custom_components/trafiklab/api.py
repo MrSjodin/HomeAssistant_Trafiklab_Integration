@@ -8,8 +8,8 @@ from typing import Any
 import aiohttp
 
 from .const import (
-    API_BASE_URL, 
-    DEPARTURES_ENDPOINT, 
+    API_BASE_URL,
+    DEPARTURES_ENDPOINT,
     ARRIVALS_ENDPOINT,
     STOP_LOOKUP_ENDPOINT,
     RESROBOT_BASE_URL,
@@ -19,6 +19,128 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Exception hierarchy
+# ---------------------------------------------------------------------------
+
+class TrafikLabApiError(Exception):
+    """Base exception for all Trafiklab API errors."""
+
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        error_code: str | None = None,
+        http_status: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.http_status = http_status
+
+
+class TrafikLabAuthError(TrafikLabApiError):
+    """Raised when authentication fails (invalid / missing API key)."""
+
+
+class TrafikLabQuotaError(TrafikLabApiError):
+    """Raised when the API quota or rate limit is exceeded."""
+
+
+class TrafikLabNotFoundError(TrafikLabApiError):
+    """Raised when a stop / resource is not found."""
+
+
+class TrafikLabServerError(TrafikLabApiError):
+    """Raised when the API returns a server-side error (5xx)."""
+
+
+# ---------------------------------------------------------------------------
+# Private error-parsing helpers
+# ---------------------------------------------------------------------------
+
+def _raise_realtime_error(
+    status: int, body_text: str, json_body: dict | None
+) -> None:
+    """Parse a non-2xx Realtime API response and raise the appropriate exception.
+
+    Realtime error format (HTTP 403 example):
+        {"errorCode": "error.key.invalid", "errorDetail": "Key '...' does not exist.", "parameterValues": []}
+    """
+    error_code: str = ""
+    error_detail: str = ""
+    if json_body:
+        error_code = (json_body.get("errorCode") or "").lower()
+        error_detail = json_body.get("errorDetail") or json_body.get("message") or ""
+
+    message = error_detail or body_text or f"HTTP {status}"
+
+    # Auth: explicit error code patterns OR 401/403
+    if (
+        "key" in error_code
+        or "auth" in error_code
+        or "unauthorized" in error_code
+        or status in (401, 403)
+    ):
+        raise TrafikLabAuthError(message, error_code=error_code or None, http_status=status)
+
+    # Quota / rate-limit
+    if "quota" in error_code or "rate" in error_code or "limit" in error_code or status == 429:
+        raise TrafikLabQuotaError(message, error_code=error_code or None, http_status=status)
+
+    # Not found: explicit code or 404
+    if "not_found" in error_code or "stop" in error_code or "location" in error_code or status == 404:
+        raise TrafikLabNotFoundError(message, error_code=error_code or None, http_status=status)
+
+    # Server errors
+    if status >= 500:
+        raise TrafikLabServerError(message, error_code=error_code or None, http_status=status)
+
+    # Catch-all
+    raise TrafikLabApiError(message, error_code=error_code or None, http_status=status)
+
+
+def _raise_resrobot_error(
+    status: int, body_text: str, json_body: dict | None
+) -> None:
+    """Parse a non-2xx Resrobot API response and raise the appropriate exception.
+
+    Resrobot error format:
+        {"errorCode": "API_AUTH", "errorText": "access denied for ...", ...}
+
+    SVC_NO_RESULT (HTTP 200) is handled upstream as an empty Trip list, not here.
+    """
+    error_code: str = ""
+    error_text: str = ""
+    if json_body:
+        error_code = (json_body.get("errorCode") or "").upper()
+        error_text = json_body.get("errorText") or json_body.get("errorDetail") or ""
+
+    message = error_text or body_text or f"HTTP {status}"
+
+    # Auth errors
+    if error_code == "API_AUTH" or status in (401, 403):
+        raise TrafikLabAuthError(message, error_code=error_code or None, http_status=status)
+
+    # Quota / rate-limit
+    if error_code in ("API_QUOTA", "API_TOO_MANY_REQUESTS") or status == 429:
+        raise TrafikLabQuotaError(message, error_code=error_code or None, http_status=status)
+
+    # Location / not-found type errors
+    if error_code.startswith("SVC_LOC") or error_code == "SVC_NO_MATCH" or status == 404:
+        raise TrafikLabNotFoundError(message, error_code=error_code or None, http_status=status)
+
+    # Server errors
+    if error_code.startswith("INT_") or status >= 500:
+        raise TrafikLabServerError(message, error_code=error_code or None, http_status=status)
+
+    # Catch-all (bad request etc.)
+    raise TrafikLabApiError(message, error_code=error_code or None, http_status=status)
+
+
+# ---------------------------------------------------------------------------
+# API client
+# ---------------------------------------------------------------------------
 
 class TrafikLabApiClient:
     """API client for Trafiklab and Resrobot endpoints."""
@@ -73,15 +195,16 @@ class TrafikLabApiClient:
                 if response.status == 200:
                     return await response.json()
                 response_text = await response.text()
-                if response.status == 403:
-                    raise TrafikLabApiError(f"Invalid API key for Resrobot: {response_text}")
-                elif response.status == 404:
-                    raise TrafikLabApiError(f"Resrobot: Not found (HTTP 404): {response_text}")
-                else:
-                    response.raise_for_status()
-                    return await response.json()
+                json_body: dict | None = None
+                try:
+                    json_body = await response.json(content_type=None)
+                except Exception:
+                    pass
+                _raise_resrobot_error(response.status, response_text, json_body)
         except asyncio.TimeoutError as err:
             raise TrafikLabApiError("Resrobot request timed out") from err
+        except TrafikLabApiError:
+            raise
         except aiohttp.ClientError as err:
             raise TrafikLabApiError(f"Resrobot request failed: {err}") from err
     def __init__(self, api_key: str, session: aiohttp.ClientSession | None = None, timeout: int = 15) -> None:
@@ -128,34 +251,21 @@ class TrafikLabApiClient:
 
         try:
             async with self.session.get(url, params=params) as response:
-                # Don't raise for status immediately, check the response first
                 if response.status == 200:
                     return await response.json()
-                
-                # Handle specific HTTP status codes
+
                 response_text = await response.text()
-                
-                if response.status == 403:
-                    # Parse JSON error if available
-                    try:
-                        error_data = await response.json()
-                        error_code = error_data.get("errorCode", "")
-                        error_detail = error_data.get("errorDetail", "")
-                        if "key" in error_code.lower() or "key" in error_detail.lower():
-                            raise TrafikLabApiError(f"Invalid API key: {error_detail}")
-                    except Exception:
-                        pass
-                    raise TrafikLabApiError(f"API key authentication failed (HTTP 403): {response_text}")
-                
-                elif response.status == 404:
-                    raise TrafikLabApiError(f"Stop ID not found (HTTP 404): {response_text}")
-                
-                else:
-                    response.raise_for_status()
-                    return await response.json()
-                    
+                json_body: dict | None = None
+                try:
+                    json_body = await response.json(content_type=None)
+                except Exception:
+                    pass
+                _raise_realtime_error(response.status, response_text, json_body)
+
         except asyncio.TimeoutError as err:
             raise TrafikLabApiError("Request timed out") from err
+        except TrafikLabApiError:
+            raise
         except aiohttp.ClientError as err:
             raise TrafikLabApiError(f"Request failed: {err}") from err
 
@@ -174,10 +284,19 @@ class TrafikLabApiClient:
 
         try:
             async with self.session.get(url, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
+                if response.status == 200:
+                    return await response.json()
+                response_text = await response.text()
+                json_body: dict | None = None
+                try:
+                    json_body = await response.json(content_type=None)
+                except Exception:
+                    pass
+                _raise_realtime_error(response.status, response_text, json_body)
         except asyncio.TimeoutError as err:
             raise TrafikLabApiError("Request timed out") from err
+        except TrafikLabApiError:
+            raise
         except aiohttp.ClientError as err:
             raise TrafikLabApiError(f"Request failed: {err}") from err
 
@@ -188,10 +307,19 @@ class TrafikLabApiClient:
 
         try:
             async with self.session.get(url, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
+                if response.status == 200:
+                    return await response.json()
+                response_text = await response.text()
+                json_body: dict | None = None
+                try:
+                    json_body = await response.json(content_type=None)
+                except Exception:
+                    pass
+                _raise_realtime_error(response.status, response_text, json_body)
         except asyncio.TimeoutError as err:
             raise TrafikLabApiError("Request timed out") from err
+        except TrafikLabApiError:
+            raise
         except aiohttp.ClientError as err:
             raise TrafikLabApiError(f"Request failed: {err}") from err
 
@@ -215,13 +343,16 @@ class TrafikLabApiClient:
                     _LOGGER.debug("Resrobot location.name raw response for %r: %s", search_value, data)
                     return data
                 response_text = await response.text()
-                if response.status == 403:
-                    raise TrafikLabApiError(f"Invalid Resrobot API key: {response_text}")
-                else:
-                    response.raise_for_status()
-                    return await response.json()
+                json_body: dict | None = None
+                try:
+                    json_body = await response.json(content_type=None)
+                except Exception:
+                    pass
+                _raise_resrobot_error(response.status, response_text, json_body)
         except asyncio.TimeoutError as err:
             raise TrafikLabApiError("Resrobot location lookup timed out") from err
+        except TrafikLabApiError:
+            raise
         except aiohttp.ClientError as err:
             raise TrafikLabApiError(f"Resrobot location lookup failed: {err}") from err
 
@@ -232,7 +363,3 @@ class TrafikLabApiClient:
             return True
         except TrafikLabApiError:
             return False
-
-
-class TrafikLabApiError(Exception):
-    """Exception for Trafiklab API errors."""
