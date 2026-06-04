@@ -92,6 +92,7 @@
       "invalid_api_key": "Ogiltig API-nyckel",
       "invalid_stop_id": "Ogiltigt hållplats-ID",
       "invalid_coordinates": "Ogiltigt koordinatformat (lat,lon)",
+      "quota_exceeded": "API-kvot överskriden — vänta innan du försöker igen",
       "unknown": "Oväntat fel uppstod"
     },
     "abort": {
@@ -178,6 +179,12 @@
           "include_platform": "När aktiverat matchas varje kollektivtrafiksträcka mot Tidtabell Realtids-API för att hämta avgångsplattform. Kräver en konfigurerad avgångs- eller ankomstsensor. Ett extra API-anrop per unik ursprungshållplats görs vid varje uppdatering."
         }
       }
+    }
+  },
+  "issues": {
+    "invalid_api_key": {
+      "title": "Ogiltig Trafiklab API-nyckel för {entry_title}",
+      "description": "API-nyckeln konfigurerad för **{entry_title}** är ej behörig. Konfigurera om integrationen med en giltig Trafiklab API-nyckel."
     }
   }
 }

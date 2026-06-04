@@ -583,3 +583,93 @@ async def test_resrobot_multi_mode_merges_and_deduplicates_trips(hass: HomeAssis
     categories = {leg["category"] for trip in trips for leg in trip.get("legs", [])}
     assert "Metro" in categories
     assert "Bus" in categories
+
+
+# ---------------------------------------------------------------------------
+# Tests for api_error_code / api_error_message sensor attributes
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_sensor_exposes_api_error_attributes_when_coordinator_has_error(hass: HomeAssistant) -> None:
+    """When coordinator.last_api_error is set, sensor attrs must expose api_error_code and api_error_message."""
+    from custom_components.trafiklab.api import TrafikLabAuthError
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "key", "stop_id": "740098000", "name": "ErrAttr", "sensor_type": "departure"},
+        options={"time_window": 60, "refresh_interval": 300},
+        unique_id="err_attr_test",
+    )
+    entry.add_to_hass(hass)
+
+    # Set up with good data first so we get an entity
+    from datetime import datetime, timedelta
+    future = (datetime.now() + timedelta(minutes=10)).isoformat()
+    good_response = {"departures": [{
+        "scheduled": future, "realtime": future, "is_realtime": True, "delay": 0,
+        "canceled": False, "realtime_platform": None, "scheduled_platform": None,
+        "route": {"designation": "52", "direction": "Central", "transport_mode": "BUS", "name": "Bus 52"},
+        "agency": {"name": "SL"}, "trip": {"trip_id": "t1"},
+    }]}
+
+    with patch("custom_components.trafiklab.api.TrafikLabApiClient.get_departures", return_value=good_response):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+
+    # Manually plant an API error into the coordinator (simulates a failed refresh)
+    coordinator.last_api_error = {
+        "code": "API_AUTH",
+        "message": "access denied",
+        "http_status": 403,
+    }
+
+    from homeassistant.helpers import entity_registry as er
+    ent_reg = er.async_get(hass)
+    entity_id = ent_reg.async_get_entity_id("sensor", "trafiklab", f"{entry.entry_id}_next_departure")
+    assert entity_id is not None
+
+    # Force a state write so HA picks up the updated attributes
+    coordinator.async_set_updated_data(good_response)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(entity_id)
+    assert state is not None
+    attrs = state.attributes
+    assert attrs.get("api_error_code") == "API_AUTH"
+    assert attrs.get("api_error_message") == "access denied"
+
+
+@pytest.mark.asyncio
+async def test_sensor_no_error_attributes_when_healthy(hass: HomeAssistant) -> None:
+    """When coordinator.last_api_error is None, api_error_code must not appear in attributes."""
+    from datetime import datetime, timedelta
+    future = (datetime.now() + timedelta(minutes=5)).isoformat()
+    good_response = {"departures": [{
+        "scheduled": future, "realtime": future, "is_realtime": True, "delay": 0,
+        "canceled": False, "realtime_platform": None, "scheduled_platform": None,
+        "route": {"designation": "7", "direction": "T-Centralen", "transport_mode": "TRAM", "name": "Spårväg 7"},
+        "agency": {"name": "SL"}, "trip": {"trip_id": "t7"},
+    }]}
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "key", "stop_id": "740098000", "name": "Healthy", "sensor_type": "departure"},
+        options={"time_window": 60, "refresh_interval": 300},
+        unique_id="no_err_attr_test",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("custom_components.trafiklab.api.TrafikLabApiClient.get_departures", return_value=good_response):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    from homeassistant.helpers import entity_registry as er
+    ent_reg = er.async_get(hass)
+    entity_id = ent_reg.async_get_entity_id("sensor", "trafiklab", f"{entry.entry_id}_next_departure")
+    assert entity_id is not None
+    attrs = hass.states.get(entity_id).attributes
+    assert "api_error_code" not in attrs
+    assert "api_error_message" not in attrs
+

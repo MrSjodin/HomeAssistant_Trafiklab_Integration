@@ -92,6 +92,7 @@
       "invalid_api_key": "Invalid API key",
       "invalid_stop_id": "Invalid stop ID",
       "invalid_coordinates": "Invalid coordinates format (lat,lon)",
+      "quota_exceeded": "API quota exceeded — wait before trying again",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
@@ -178,6 +179,12 @@
           "include_platform": "When enabled, each public-transport leg is matched against the Timetable Realtime API to resolve the departure platform. Requires a configured departure or arrival sensor. One extra API call per unique origin stop is made on each refresh."
         }
       }
+    }
+  },
+  "issues": {
+    "invalid_api_key": {
+      "title": "Invalid Trafiklab API key for {entry_title}",
+      "description": "The API key configured for **{entry_title}** is unauthorized. Please reconfigure the integration with a valid Trafiklab API key."
     }
   }
 }

@@ -179,24 +179,31 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        api_error = getattr(self.coordinator, "last_api_error", None)
         if not self.coordinator.data:
-            return {}
+            attrs: dict[str, Any] = {}
+            self._inject_api_error(attrs)
+            return attrs
         sensor_type = self._entry.data.get(CONF_SENSOR_TYPE, "departure")
         if sensor_type == "resrobot_travel_search":
             # Build a sorted top-level trips array and per-trip sorted legs array
             trips_raw = self.coordinator.data.get("Trip", [])
             if not trips_raw:
-                return {}
+                attrs = {}
+                self._inject_api_error(attrs)
+                return attrs
             options_merged = {**self._entry.options, **self._entry.data}
             max_trip_duration: int | None = options_merged.get(CONF_MAX_TRIP_DURATION)
             trips_sorted = self._normalize_resrobot_trips(trips_raw, max_trip_duration)
-            return {
+            attrs: dict[str, Any] = {
                 "num_trips": len(trips_sorted),
                 "trips": trips_sorted,
                 "attribution": "Data from Resrobot/Trafiklab.se",
                 "last_update": getattr(self.coordinator, "last_successful_update", None),
                 "integration": DOMAIN,
             }
+            self._inject_api_error(attrs)
+            return attrs
         # ...existing code for departure/arrival...
         items = self._get_data_items()
         if not items:
@@ -204,7 +211,7 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
         first_item = items[0]
         merged_cfg = {**self._entry.data, **self._entry.options}
         configured_direction = merged_cfg.get(CONF_DIRECTION, "")
-        return {
+        attrs = {
             "line": (first_item.get("route") or {}).get("designation", ""),
             "destination": (first_item.get("route") or {}).get("direction", ""),
             "direction": configured_direction,
@@ -220,6 +227,15 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             "last_update": getattr(self.coordinator, "last_successful_update", None),
             "integration": DOMAIN,
         }
+        self._inject_api_error(attrs)
+        return attrs
+
+    def _inject_api_error(self, attrs: dict[str, Any]) -> None:
+        """Inject api_error_code/api_error_message into attrs when coordinator has an error."""
+        api_error = getattr(self.coordinator, "last_api_error", None)
+        if api_error:
+            attrs["api_error_code"] = api_error.get("code")
+            attrs["api_error_message"] = api_error.get("message")
 
     def _build_upcoming_array(
         self, items: list[dict], configured_direction: str

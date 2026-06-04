@@ -26,8 +26,15 @@ from .const import (
     CONF_INCLUDE_PLATFORM,
     DOMAIN,
 )
-from .api import TrafikLabApiClient
+from .api import (
+    TrafikLabApiClient,
+    TrafikLabApiError,
+    TrafikLabAuthError,
+    TrafikLabQuotaError,
+    TrafikLabServerError,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.issue_registry as ir
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +50,8 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
         self.api_client = TrafikLabApiClient(entry.data[CONF_API_KEY], session=session)
         # Track last successful update (UTC ISO8601)
         self.last_successful_update: str | None = None
+        # Track last API error (None when healthy)
+        self.last_api_error: dict | None = None
 
         # Options override data if present
         refresh_interval = entry.options.get(
@@ -170,6 +179,8 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
                 # Mark successful update time
                 from datetime import datetime, timezone
                 self.last_successful_update = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+                self.last_api_error = None
+                ir.async_delete_issue(self.hass, DOMAIN, f"invalid_api_key_{self.entry.entry_id}")
                 return data
             else:
                 stop_id = self.entry.data[CONF_STOP_ID]
@@ -195,10 +206,66 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
                 # Mark successful update time (UTC ISO8601 without microseconds)
                 from datetime import datetime, timezone
                 self.last_successful_update = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+                self.last_api_error = None
+                ir.async_delete_issue(self.hass, DOMAIN, f"invalid_api_key_{self.entry.entry_id}")
                 return data
             
-        except Exception as err:
+        except TrafikLabAuthError as err:
+            self.last_api_error = {
+                "code": err.error_code or "auth_error",
+                "message": str(err),
+                "http_status": err.http_status,
+            }
+            _LOGGER.error(
+                "Authentication error for %s — API key is invalid or unauthorized: %s",
+                self.entry.title,
+                err,
+            )
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                f"invalid_api_key_{self.entry.entry_id}",
+                is_fixable=False,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key="invalid_api_key",
+                translation_placeholders={"entry_title": self.entry.title},
+            )
+            raise UpdateFailed(f"Authentication error: {err}") from err
+        except TrafikLabQuotaError as err:
+            self.last_api_error = {
+                "code": err.error_code or "quota_exceeded",
+                "message": str(err),
+                "http_status": err.http_status,
+            }
+            _LOGGER.warning(
+                "Quota or rate-limit exceeded for %s: %s", self.entry.title, err
+            )
+            raise UpdateFailed(f"Quota exceeded: {err}") from err
+        except TrafikLabServerError as err:
+            self.last_api_error = {
+                "code": err.error_code or "server_error",
+                "message": str(err),
+                "http_status": err.http_status,
+            }
+            _LOGGER.warning(
+                "Trafiklab server error for %s: %s", self.entry.title, err
+            )
+            raise UpdateFailed(f"Server error: {err}") from err
+        except TrafikLabApiError as err:
+            self.last_api_error = {
+                "code": err.error_code or "api_error",
+                "message": str(err),
+                "http_status": err.http_status,
+            }
             _LOGGER.error("Error communicating with API: %s", err)
+            raise UpdateFailed(f"Error communicating with API: {err}") from err
+        except Exception as err:
+            self.last_api_error = {
+                "code": "unexpected_error",
+                "message": str(err),
+                "http_status": None,
+            }
+            _LOGGER.error("Unexpected error communicating with API: %s", err)
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
     def _normalize_resrobot_response(self, data: dict) -> dict:

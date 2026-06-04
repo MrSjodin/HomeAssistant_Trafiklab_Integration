@@ -205,3 +205,139 @@ async def test_coordinator_resrobot_platform_no_realtime_key(hass: HomeAssistant
     if trips:
         leg = trips[0]["LegList"]["Leg"][0]
         assert "_realtime_platform" not in leg
+
+
+# ---------------------------------------------------------------------------
+# Error-handling tests for coordinator
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_coordinator_auth_error_sets_last_api_error_and_repair_issue(hass: HomeAssistant) -> None:
+    """TrafikLabAuthError must set last_api_error and create a repair issue."""
+    from homeassistant.helpers import issue_registry as ir
+    from custom_components.trafiklab.api import TrafikLabAuthError
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "bad-key", "stop_id": "740098000", "name": "X", "sensor_type": "departure"},
+        options={},
+        unique_id="coord-auth-err",
+    )
+    entry.add_to_hass(hass)
+
+    # Setup with a successful mock to avoid ConfigEntryNotReady during first refresh
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        return_value={"departures": []},
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator.last_api_error = None  # ensure clean state
+
+    # Do exactly one controlled refresh with auth error
+    # Note: async_refresh() does not raise — UpdateFailed is handled internally
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        side_effect=TrafikLabAuthError("access denied", http_status=403),
+    ):
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    assert coordinator.last_api_error is not None
+    assert coordinator.last_api_error["http_status"] == 403
+
+    issue_reg = ir.async_get(hass)
+    issue_id = f"invalid_api_key_{entry.entry_id}"
+    assert issue_reg.async_get_issue(DOMAIN, issue_id) is not None
+
+
+@pytest.mark.asyncio
+async def test_coordinator_success_clears_last_api_error_and_repair_issue(hass: HomeAssistant) -> None:
+    """A successful update must clear last_api_error and delete any existing repair issue."""
+    from homeassistant.helpers import issue_registry as ir
+    from custom_components.trafiklab.api import TrafikLabAuthError
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "key", "stop_id": "740098000", "name": "X", "sensor_type": "departure"},
+        options={},
+        unique_id="coord-success-clear",
+    )
+    entry.add_to_hass(hass)
+
+    # Setup with success, then plant the auth error via a controlled refresh
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        return_value={"departures": []},
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    # Note: async_refresh() does not raise — UpdateFailed is handled internally
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        side_effect=TrafikLabAuthError("access denied", http_status=403),
+    ):
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    # Confirm issue was created
+    issue_reg = ir.async_get(hass)
+    issue_id = f"invalid_api_key_{entry.entry_id}"
+    assert issue_reg.async_get_issue(DOMAIN, issue_id) is not None
+
+    # Now succeed — issue and error should be cleared
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        return_value={"departures": []},
+    ):
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    assert coordinator.last_api_error is None
+    assert issue_reg.async_get_issue(DOMAIN, issue_id) is None
+
+
+@pytest.mark.asyncio
+async def test_coordinator_quota_error_sets_last_api_error_no_repair_issue(hass: HomeAssistant) -> None:
+    """TrafikLabQuotaError must set last_api_error but must NOT create a repair issue."""
+    from homeassistant.helpers import issue_registry as ir
+    from custom_components.trafiklab.api import TrafikLabQuotaError
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "key", "stop_id": "740098000", "name": "X", "sensor_type": "departure"},
+        options={},
+        unique_id="coord-quota-err",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        return_value={"departures": []},
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator.last_api_error = None  # ensure clean state
+
+    # Note: async_refresh() does not raise — UpdateFailed is handled internally
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        side_effect=TrafikLabQuotaError("quota exceeded", http_status=429),
+    ):
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    assert coordinator.last_api_error is not None
+    assert coordinator.last_api_error["http_status"] == 429
+
+    # No repair issue for quota errors
+    issue_reg = ir.async_get(hass)
+    issue_id = f"invalid_api_key_{entry.entry_id}"
+    assert issue_reg.async_get_issue(DOMAIN, issue_id) is None
+
