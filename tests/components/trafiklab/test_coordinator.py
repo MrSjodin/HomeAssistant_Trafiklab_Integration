@@ -225,23 +225,24 @@ async def test_coordinator_auth_error_sets_last_api_error_and_repair_issue(hass:
     )
     entry.add_to_hass(hass)
 
+    # Setup with a successful mock to avoid ConfigEntryNotReady during first refresh
     with patch(
         "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
-        side_effect=TrafikLabAuthError("access denied", http_status=403),
+        return_value={"departures": []},
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
     coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator.last_api_error = None  # ensure clean state
 
-    # Reset and do exactly one controlled refresh
+    # Do exactly one controlled refresh with auth error
+    # Note: async_refresh() does not raise — UpdateFailed is handled internally
     with patch(
         "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
         side_effect=TrafikLabAuthError("access denied", http_status=403),
     ):
-        from homeassistant.helpers.update_coordinator import UpdateFailed
-        with pytest.raises(Exception):
-            await coordinator.async_refresh()
+        await coordinator.async_refresh()
         await hass.async_block_till_done()
 
     assert coordinator.last_api_error is not None
@@ -266,21 +267,21 @@ async def test_coordinator_success_clears_last_api_error_and_repair_issue(hass: 
     )
     entry.add_to_hass(hass)
 
-    # First: fail with auth error to plant the issue
+    # Setup with success, then plant the auth error via a controlled refresh
     with patch(
         "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
-        side_effect=TrafikLabAuthError("access denied", http_status=403),
+        return_value={"departures": []},
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
     coordinator = hass.data[DOMAIN][entry.entry_id]
+    # Note: async_refresh() does not raise — UpdateFailed is handled internally
     with patch(
         "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
         side_effect=TrafikLabAuthError("access denied", http_status=403),
     ):
-        with pytest.raises(Exception):
-            await coordinator.async_refresh()
+        await coordinator.async_refresh()
         await hass.async_block_till_done()
 
     # Confirm issue was created
@@ -324,12 +325,12 @@ async def test_coordinator_quota_error_sets_last_api_error_no_repair_issue(hass:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     coordinator.last_api_error = None  # ensure clean state
 
+    # Note: async_refresh() does not raise — UpdateFailed is handled internally
     with patch(
         "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
         side_effect=TrafikLabQuotaError("quota exceeded", http_status=429),
     ):
-        with pytest.raises(Exception):
-            await coordinator.async_refresh()
+        await coordinator.async_refresh()
         await hass.async_block_till_done()
 
     assert coordinator.last_api_error is not None
