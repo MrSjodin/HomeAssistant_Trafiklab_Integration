@@ -92,7 +92,7 @@ pip install -r requirements-dev.txt
 pytest tests/ --cov=custom_components.trafiklab --cov-report=xml
 ```
 
-Tests run on **Ubuntu / Python 3.11** in CI (`.github/workflows/validate.yaml`). Do not target Python 3.13 or Windows-specific wheels.
+Tests run on **Ubuntu / Python 3.12** in CI (`.github/workflows/validate.yaml`). Minimum supported Home Assistant version is **2024.8.0**. Do not target Python 3.13 or Windows-specific wheels.
 
 ### Test conventions
 - Framework: `pytest` + `pytest-homeassistant-custom-component` + `asyncio_mode = "auto"`
