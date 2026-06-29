@@ -3,6 +3,11 @@
 # pytest-homeassistant-custom-component
 pytest-homeassistant-custom-component==0.13.152
 
+# Pin ACME/Jose transitive dependencies to versions compatible with the
+# Home Assistant 2024.8 / pytest-homeassistant-custom-component test stack.
+josepy<2.0.0
+acme<2.11.0
+
 # Code quality
 black>=26.5.1
 isort>=8.0.1
