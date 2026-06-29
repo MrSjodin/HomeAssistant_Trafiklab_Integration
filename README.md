@@ -79,6 +79,7 @@ A **Stop ID** is required for **Realtime departure and arrival sensors**, and it
 
 1. Get your API key(s) from [Trafiklab](https://www.trafiklab.se/) - it's free but please note that there are a default API quota with API call limitation.
 2. Find the area/stop ID for your desired stop using the Stop Lookup service (see below)
+3. Use Home Assistant 2024.8.0 or newer
 
 Note about Resrobot: Trip planning uses Resrobot Travel Search which requires its own API key, requested from the same Trafiklab website where you request the Realtime API key. Make sure to activate/request both keys if you plan to use both sensor types.
 

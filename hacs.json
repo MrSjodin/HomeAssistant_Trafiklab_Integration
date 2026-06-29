@@ -1,6 +1,6 @@
 {
   "name": "Trafiklab",
-  "homeassistant": "2023.7.0",
+  "homeassistant": "2024.8.0",
   "zip_release": true,
   "filename": "trafiklab.zip",
   "country": ["NO", "SE", "DK", "FI"]
