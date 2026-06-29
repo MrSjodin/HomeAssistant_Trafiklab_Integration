@@ -8,7 +8,7 @@ pytest-homeassistant-custom-component==0.13.152
 josepy<2.0.0
 acme<2.11.0
 
-pycares<4.9.0
+pycares<5.1.0
 
 # Code quality
 black>=26.5.1
