@@ -1,9 +1,7 @@
 # Development dependencies
-# pytest-homeassistant-custom-component pins exact compatible versions of pytest,
-# pytest-asyncio, and pytest-cov; do not add separate constraints for those packages
-# here or Dependabot's one-package-at-a-time bumps will conflict with phcc's pins.
-# 0.13.45 is the last release compatible with Python 3.10; 0.13.46+ requires >=3.11.
-pytest-homeassistant-custom-component==0.13.45
+#
+# pytest-homeassistant-custom-component
+pytest-homeassistant-custom-component==0.13.152
 
 # Code quality
 black>=26.5.1
@@ -12,4 +10,4 @@ flake8>=7.3.0
 mypy>=2.1.0
 
 # Home Assistant
-homeassistant>=2023.7.0
+homeassistant>=2024.8.0
