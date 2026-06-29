@@ -1,5 +1,6 @@
 # Home Assistant Trafiklab Integration
 
+![Home Assistant Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FMrSjodin%2FHomeAssistant_Trafiklab_Integration%2Fmain%2Fhacs.json&query=%24.homeassistant&label=Home%20Assistant&color=blue)
 [![Stable](https://img.shields.io/badge/project%20state-stable-green.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![Maintained](https://img.shields.io/badge/maintained-yes-green.svg)](https://github.com/MrSjodin/HomeAssistant_Trafiklab_Integration)
 [![HACS](https://img.shields.io/badge/HACS-default-green.svg)](https://github.com/hacs/integration)
@@ -15,7 +16,6 @@ This integration is entirely community-developed and is not developed by, or in 
 
 - [Features](#features)
 - [Installation](#installation)
-- [Finding Your Stop ID](#finding-your-stop-id)
 - [Configuration](#configuration)
 - [Sensors](#sensors)
 - [Services](#services)
@@ -60,21 +60,6 @@ This integration is entirely community-developed and is not developed by, or in 
 1. Copy the `custom_components/trafiklab` folder to your Home Assistant `custom_components` directory
 2. Restart Home Assistant
 
-## Finding Your Stop ID
-
-A **Stop ID** is required for **Realtime departure and arrival sensors**, and it is also one supported way to configure **Travel Search** sensors. Travel Search sensors and the `trafiklab.travel_search` service can also use coordinates, stop names, HA zones, or person/device_tracker entities. If you want to use a Stop ID, use the built-in `trafiklab.stop_lookup` service — see [Stop ID Lookup Service](#stop-id-lookup-service) for full details.
-
-**Quick steps to look up a Stop ID:**
-1. If you have no Trafiklab config entries yet, add this one-line stub to `configuration.yaml` and restart:
-   ```yaml
-   trafiklab:
-   ```
-2. Open **Developer Tools → Services**, select `trafiklab.stop_lookup`
-3. Enter your **Realtime API key** and a search string (your stop or town name)
-4. Copy the `id` value from the response — that is your **Stop ID**
-
-## Configuration
-
 ### Prerequisites
 
 1. Get your API key(s) from [Trafiklab](https://www.trafiklab.se/) - it's free but please note that there are a default API quota with API call limitation.
@@ -82,6 +67,35 @@ A **Stop ID** is required for **Realtime departure and arrival sensors**, and it
 3. Use Home Assistant 2024.8.0 or newer
 
 Note about Resrobot: Trip planning uses Resrobot Travel Search which requires its own API key, requested from the same Trafiklab website where you request the Realtime API key. Make sure to activate/request both keys if you plan to use both sensor types.
+
+## Configuration
+
+### Finding Your Stop ID
+
+A **Stop ID** is required for **Realtime departure and arrival sensors**, and it is also one supported way to configure **Travel Search** sensors. Travel Search sensors and the `trafiklab.travel_search` service can also use coordinates, stop names, HA zones, or person/device_tracker entities. If you want to use a Stop ID, use the built-in `trafiklab.stop_lookup` service — see [Stop ID Lookup Service](#stop-id-lookup-service) for full details.
+
+Please note that the Trafiklab Stop ID's are **not** the same as SL stop/station ID.
+
+#### Method 1 - Search the stop directly through a web request
+This is probably the easiest way to search for your first stop ID - although the web response may be a little difficult to read out... You need a Realtime
+
+1. Browse to https://realtime-api.trafiklab.se/v1/stops/name/{the-stop-to-search-for}?key={your-realtime-api-key}
+2. For example - if you'd like to search for "Medborgarplatsen" and your API key is "abcdefghijk1234567890" you'd use https://realtime-api.trafiklab.se/v1/stops/name/Medborgarplatsen?key=abcdefghijk1234567890
+3. You'll get a JSON response back, what you need to look for is the stop you wanted (as `name`) where the Stop ID is just before that (as `id`) - usually starts with `7`.
+
+
+#### Method 2 - Add a `trafiklab:` stub config to your `configuration.yaml`
+If you have no Trafiklab config entries set up yet, the stop lookup service won't be there (classic catch 22). If you still like to use the Stop ID lookup service, you need to activate the integration manually...
+
+1. Add this one-line stub to `configuration.yaml`:
+   ```yaml
+   trafiklab:
+   ```
+2. Restart Home Assistant
+3. Open **Developer Tools → Services**, select `trafiklab.stop_lookup`
+4. Enter your **Realtime API key** and a search string (your stop or town name)
+5. Copy the `id` value from the response — that is your **Stop ID**
+6. **After** you have configured your first sensor it's safe to remove the stub from `configuration.yaml`
 
 ### Setup
 
