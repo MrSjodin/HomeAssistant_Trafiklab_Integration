@@ -1,7 +1,7 @@
 # Development dependencies
 #
 # pytest-homeassistant-custom-component
-pytest-homeassistant-custom-component==0.13.152
+pytest-homeassistant-custom-component==0.13.342
 
 # Pin transitive dependencies to versions compatible with the
 # Home Assistant 2024.8 / pytest-homeassistant-custom-component test stack.
