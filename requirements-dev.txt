@@ -6,7 +6,7 @@ pytest-homeassistant-custom-component==0.13.152
 # Pin transitive dependencies to versions compatible with the
 # Home Assistant 2024.8 / pytest-homeassistant-custom-component test stack.
 josepy<2.0.0
-acme<2.11.0
+acme<5.7.0
 
 pycares<4.9.0
 
