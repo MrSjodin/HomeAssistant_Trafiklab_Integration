@@ -1,13 +1,19 @@
 # Development dependencies
 #
 # pytest-homeassistant-custom-component
-pytest-homeassistant-custom-component==0.13.152
+# 0.13.206+ require Python >=3.13; CI runs Python 3.12, so pin to the last
+# compatible build.
+pytest-homeassistant-custom-component==0.13.205
 
 # Pin transitive dependencies to versions compatible with the
 # Home Assistant 2024.8 / pytest-homeassistant-custom-component test stack.
-josepy<2.0.0
-acme<2.11.0
+# josepy 2.x removed ComparableX509; acme >=2.11.0 (up to <5.7.0) switched
+# to ComparableKey and is compatible with josepy 2.x.
+josepy<3.0.0
+acme<5.7.0
 
+# pycares 5.x spawns a _run_safe_shutdown_loop thread that the HA test
+# framework's teardown assertion rejects; keep on the 4.x series.
 pycares<4.9.0
 
 # Code quality
