@@ -65,4 +65,9 @@ async def test_migrate_entry_v1_to_v2_persists_version_without_data_changes(hass
 
     assert ok is True
     assert entry.version == 2
-    mock_update_entry.assert_called_once_with(entry, data=entry.data, options=entry.options)
+    mock_update_entry.assert_called_once_with(
+        entry,
+        data=entry.data,
+        options=entry.options,
+        version=2,
+    )
