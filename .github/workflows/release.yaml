@@ -18,7 +18,7 @@ jobs:
 
       - name: Create trafiklab.zip
         working-directory: custom_components/trafiklab
-        run: zip -r ../../../trafiklab.zip .
+        run: zip -r ../../trafiklab.zip .
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v3
