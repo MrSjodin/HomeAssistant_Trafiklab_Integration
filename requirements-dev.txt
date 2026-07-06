@@ -3,7 +3,7 @@
 # pytest-homeassistant-custom-component
 # 0.13.206+ require Python >=3.13; CI runs Python 3.12, so pin to the last
 # compatible build.
-pytest-homeassistant-custom-component==0.13.205
+pytest-homeassistant-custom-component==0.13.345
 
 # Pin transitive dependencies to versions compatible with the
 # Home Assistant 2024.8 / pytest-homeassistant-custom-component test stack.
