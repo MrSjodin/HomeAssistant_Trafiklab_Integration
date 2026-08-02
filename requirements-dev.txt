@@ -10,7 +10,7 @@ pytest-homeassistant-custom-component==0.13.205
 # josepy 2.x removed ComparableX509; acme >=2.11.0 (up to <5.7.0) switched
 # to ComparableKey and is compatible with josepy 2.x.
 josepy<3.0.0
-acme<5.7.0
+acme<5.8.0
 
 # pycares 5.x spawns a _run_safe_shutdown_loop thread that the HA test
 # framework's teardown assertion rejects; keep on the 4.x series.
