@@ -55,6 +55,8 @@ This integration is entirely community-developed and is not developed by, or in 
 2. Install the integration
 3. Restart Home Assistant
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=MrSjodin&repository=HomeAssistant_Trafiklab_Integration&category=integration)
+
 ### Manual Installation
 
 1. Copy the `custom_components/trafiklab` folder to your Home Assistant `custom_components` directory
