@@ -36,6 +36,7 @@ This integration is entirely community-developed and is not developed by, or in 
 - **Line filtering**: Monitor specific lines by filtering with comma-separated line numbers, per sensor
 - **Destination filtering**: Filter by (substring) text match of destination(s) at a stop (useful for busy stops), per sensor
 - **Configurable time window**: Set how many minutes ahead to search (1-1440 minutes), per sensor
+- **Configurable result count**: Set how many departures/arrivals or trips are returned (1-100, default 10), per sensor
 - **Maximum trip duration filter**: For Travel Search sensors, exclude trips longer than a configurable limit (1-1440 minutes)
 - **Transport mode filtering**: Filter by transport category — Bus, Metro, Train, Tram, or Boat/Ferry — for both Realtime and Travel Search sensors
 - **Flexible sensor configuration**: Create separate sensors for departures and arrivals
@@ -113,12 +114,14 @@ If you have no Trafiklab config entries set up yet, the stop lookup service won'
      - Optional transport mode filter (Bus, Metro, Train, Tram, Boat/Ferry — leave empty for all)
      - Time window and refresh interval
      - Optional Update Condition (template)
+     - Optional maximum number of results (default 10)
    - Travel Search:
      - Origin and Destination: each can be a Stop ID or coordinates "lat,lon" (select type for each)
      - Optional via/avoid Stop IDs and maximum walking distance
      - Optional transport mode filter (Bus, Metro, Train, Tram, Boat/Ferry — leave empty for all)
      - Time window and refresh interval
      - Optional maximum trip duration (in minutes) — trips longer than this are excluded from results
+     - Optional maximum number of results (default 10)
 5. Finish to create the sensor.
 
 **Note**: The integration now uses **area IDs** from the Trafiklab Realtime API, which correspond to "rikshållplatser" (national stops) or meta-stops. Use the stop lookup service to find the correct area ID for your stop.
@@ -171,6 +174,18 @@ options:
   max_trip_duration: 60
 ```
 
+#### Maximum Number of Results (new)
+
+Both Departure/Arrival sensors and Travel Search sensors support an optional **Maximum Number of Results** setting (1–100), configurable through the config flow (initial setup) or the options flow (reconfigure). It controls how many items are exposed in the `upcoming` attribute (Departure/Arrival) or the `trips` attribute (Travel Search).
+
+If left unset, it defaults to **10**, matching the previous hardcoded behavior — fully backward compatible with existing sensors.
+
+```yaml
+# Example: return up to 25 trips/departures instead of the default 10
+options:
+  max_results: 25
+```
+
 
 ### Sensor Attributes
 
@@ -217,7 +232,7 @@ The `trips` attribute on Travel Search sensors contains a sorted array of trips,
 
 #### Upcoming Departures/Arrivals Array Structure
 
-The `upcoming` attribute contains an array of up to 10 upcoming departures/arrivals, each with:
+The `upcoming` attribute contains an array of upcoming departures/arrivals, limited by the configurable **Maximum Number of Results** option (default 10), each with:
 
 ```json
 {
