@@ -21,7 +21,8 @@
           "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
-          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
+          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)",
+          "max_results": "Maximalt antal resultat (avgångar/ankomster att visa)"
         },
         "data_description": {
           "transport_modes": "Lämna tomt för att visa alla transportmedel."
@@ -42,7 +43,8 @@
           "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
-          "include_platform": "Inkludera plattform (kors-kontroll mot Tidtabell Realtids-API)"
+          "include_platform": "Inkludera plattform (kors-kontroll mot Tidtabell Realtids-API)",
+          "max_results": "Maximalt antal resultat (resor att visa)"
         },
         "data_description": {
           "transport_modes": "Lämna tomt för att inkludera alla transportmedel. OBS: Om valt exkluderas gång- och bytessträckor från resultaten.",
@@ -59,7 +61,8 @@
           "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
-          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
+          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)",
+          "max_results": "Maximalt antal resultat (avgångar/ankomster att visa)"
         },
         "data_description": {
           "transport_modes": "Lämna tomt för att visa alla transportmedel."
@@ -155,7 +158,8 @@
           "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
-          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)"
+          "update_condition": "Uppdateringsvillkor (mall; rendera till 'true' för att hämta)",
+          "max_results": "Maximalt antal resultat (avgångar/ankomster att visa)"
         },
         "data_description": {
           "transport_modes": "Lämna tomt för att visa alla transportmedel."
@@ -172,7 +176,8 @@
           "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
-          "include_platform": "Inkludera plattform (kors-kontroll mot Tidtabell Realtids-API)"
+          "include_platform": "Inkludera plattform (kors-kontroll mot Tidtabell Realtids-API)",
+          "max_results": "Maximalt antal resultat (resor att visa)"
         },
         "data_description": {
           "transport_modes": "Lämna tomt för att inkludera alla transportmedel. OBS: Om valt exkluderas gång- och bytessträckor från resultaten.",
