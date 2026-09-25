@@ -57,6 +57,8 @@ from .const import (
     CONF_AVOID,
     CONF_MAX_WALKING_DISTANCE,
     CONF_MAX_TRIP_DURATION,
+    CONF_MAX_RESULTS,
+    DEFAULT_MAX_RESULTS,
     CONF_TRANSPORT_MODES,
     CONF_INCLUDE_PLATFORM,
 )
@@ -113,8 +115,11 @@ STEP_SENSOR_DATA_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
         ),
     # New: Optional Jinja template string to decide whether to perform update. When template renders to 'true' (case-insensitive), update is performed.
-    vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
+        vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
         vol.Optional(CONF_TRANSPORT_MODES, default=[]): _TRANSPORT_MODES_SELECTOR,
+        vol.Optional(CONF_MAX_RESULTS, default=DEFAULT_MAX_RESULTS): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=100)
+        ),
     }
 )
 
@@ -230,6 +235,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_TIME_WINDOW: user_input.get(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW),
                     CONF_REFRESH_INTERVAL: user_input.get(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     CONF_UPDATE_CONDITION: user_input.get(CONF_UPDATE_CONDITION, ""),
+                    CONF_MAX_RESULTS: user_input.get(CONF_MAX_RESULTS, DEFAULT_MAX_RESULTS),
                 }
                 unique_id = f"{self._stop_id}_{self._sensor_type}"
                 await self.async_set_unique_id(unique_id)
@@ -253,6 +259,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
                 ),
                 vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
+                vol.Optional(CONF_MAX_RESULTS, default=DEFAULT_MAX_RESULTS): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=100)
+                ),
             }),
             errors=errors,
         )
@@ -278,6 +287,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_REFRESH_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)),
             vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
             vol.Optional(CONF_INCLUDE_PLATFORM, default=False): bool,
+            vol.Optional(CONF_MAX_RESULTS, default=DEFAULT_MAX_RESULTS): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=100)
+            ),
         })
 
         if user_input is not None:
@@ -347,6 +359,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "refresh_interval": refresh_interval,
                     "time_window": time_window,
                     CONF_INCLUDE_PLATFORM: user_input.get(CONF_INCLUDE_PLATFORM, False),
+                    CONF_MAX_RESULTS: user_input.get(CONF_MAX_RESULTS, DEFAULT_MAX_RESULTS),
                 }
                 # Unique ID should be stable and not include name which can change
                 unique_id = f"resrobot_{origin}_{destination}"
@@ -385,6 +398,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_TIME_WINDOW: user_input.get(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW),
                 CONF_REFRESH_INTERVAL: user_input.get(CONF_REFRESH_INTERVAL, DEFAULT_SCAN_INTERVAL),
                 CONF_UPDATE_CONDITION: user_input.get(CONF_UPDATE_CONDITION, ""),
+                CONF_MAX_RESULTS: user_input.get(CONF_MAX_RESULTS, DEFAULT_MAX_RESULTS),
             }
 
             # Create a unique ID for this sensor configuration
@@ -559,6 +573,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Coerce(int), vol.Range(min=MINIMUM_SCAN_INTERVAL, max=3600)
             ),
             vol.Optional(CONF_UPDATE_CONDITION, default=""): str,
+            vol.Optional(CONF_MAX_RESULTS, default=DEFAULT_MAX_RESULTS): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=100)
+            ),
         })
         current_values = {**self._entry.data, **self._entry.options}
         # Normalize transport_modes: old entries may lack the key, have None stored,
@@ -596,6 +613,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Coerce(int), vol.Range(min=1, max=1440)
             ),
             vol.Optional(CONF_INCLUDE_PLATFORM, default=False): bool,
+            vol.Optional(CONF_MAX_RESULTS, default=DEFAULT_MAX_RESULTS): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=100)
+            ),
         })
         current_values = {**self._entry.data, **self._entry.options}
         # Normalize transport_modes: old entries may lack the key, have None stored,
