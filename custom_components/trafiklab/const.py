@@ -28,6 +28,8 @@ CONF_MAX_TRIP_DURATION: Final = "max_trip_duration"
 CONF_TRANSPORT_MODES: Final = "transport_modes"
 CONF_INCLUDE_PLATFORM: Final = "include_platform"
 CONF_REALTIME_API_KEY: Final = "realtime_api_key"
+# Shared config key: max number of departures/arrivals/trips to return
+CONF_MAX_RESULTS: Final = "max_results"
 
 
 # Sensor types
@@ -41,6 +43,7 @@ MINIMUM_SCAN_INTERVAL: Final = 60   # 1 minute minimum
 DEFAULT_NAME: Final = "Trafiklab"
 DEFAULT_TIME_WINDOW: Final = 60  # minutes
 DEFAULT_UPDATE_CONDITION: Final = ""  # empty means always update
+DEFAULT_MAX_RESULTS: Final = 10  # matches historical hardcoded limit
 
 
 # API endpoints

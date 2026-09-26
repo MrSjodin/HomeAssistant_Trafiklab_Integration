@@ -22,7 +22,9 @@ from .const import (
     CONF_DIRECTION,
     CONF_LINE_FILTER,
     CONF_MAX_TRIP_DURATION,
+    CONF_MAX_RESULTS,
     CONF_TRANSPORT_MODES,
+    DEFAULT_MAX_RESULTS,
     SENSOR_TYPE_ARRIVAL,
     SENSOR_TYPE_RESROBOT,
 )
@@ -195,9 +197,11 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             options_merged = {**self._entry.options, **self._entry.data}
             max_trip_duration: int | None = options_merged.get(CONF_MAX_TRIP_DURATION)
             trips_sorted = self._normalize_resrobot_trips(trips_raw, max_trip_duration)
+            max_results = int(options_merged.get(CONF_MAX_RESULTS) or DEFAULT_MAX_RESULTS)
+            trips_limited = trips_sorted[:max_results]
             attrs: dict[str, Any] = {
-                "num_trips": len(trips_sorted),
-                "trips": trips_sorted,
+                "num_trips": len(trips_limited),
+                "trips": trips_limited,
                 "attribution": "Data from Resrobot/Trafiklab.se",
                 "last_update": getattr(self.coordinator, "last_successful_update", None),
                 "integration": DOMAIN,
@@ -222,7 +226,10 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             "delay": first_item.get("delay", 0),
             "canceled": first_item.get("canceled"),
             "platform": (first_item.get("realtime_platform") or {}).get("designation", ""),
-            "upcoming": self._build_upcoming_array(items[:10], configured_direction),
+            "upcoming": self._build_upcoming_array(
+                items[: int(merged_cfg.get(CONF_MAX_RESULTS) or DEFAULT_MAX_RESULTS)],
+                configured_direction,
+            ),
             "attribution": "Data from Trafiklab.se",
             "last_update": getattr(self.coordinator, "last_successful_update", None),
             "integration": DOMAIN,

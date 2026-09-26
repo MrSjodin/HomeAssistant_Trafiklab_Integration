@@ -21,7 +21,8 @@
           "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
-          "update_condition": "Update Condition (template; render to 'true' to fetch)"
+          "update_condition": "Update Condition (template; render to 'true' to fetch)",
+          "max_results": "Maximum Number of Results (departures/arrivals to return)"
         },
         "data_description": {
           "transport_modes": "Leave empty to show all modes."
@@ -42,7 +43,8 @@
           "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
-          "include_platform": "Include platform (cross-checks Timetable Realtime API)"
+          "include_platform": "Include platform (cross-checks Timetable Realtime API)",
+          "max_results": "Maximum Number of Results (trips to return)"
         },
         "data_description": {
           "transport_modes": "Leave empty to include all modes. Note: if set, walk and transfer legs will be excluded from results.",
@@ -59,7 +61,8 @@
           "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
-          "update_condition": "Update Condition (template; render to 'true' to fetch)"
+          "update_condition": "Update Condition (template; render to 'true' to fetch)",
+          "max_results": "Maximum Number of Results (departures/arrivals to return)"
         },
         "data_description": {
           "transport_modes": "Leave empty to show all modes."
@@ -155,7 +158,8 @@
           "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
-          "update_condition": "Update Condition (template; render to 'true' to fetch)"
+          "update_condition": "Update Condition (template; render to 'true' to fetch)",
+          "max_results": "Maximum Number of Results (departures/arrivals to return)"
         },
         "data_description": {
           "transport_modes": "Leave empty to show all modes."
@@ -172,7 +176,8 @@
           "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
-          "include_platform": "Include platform (cross-checks Timetable Realtime API)"
+          "include_platform": "Include platform (cross-checks Timetable Realtime API)",
+          "max_results": "Maximum Number of Results (trips to return)"
         },
         "data_description": {
           "transport_modes": "Leave empty to include all modes. Note: if set, walk and transfer legs will be excluded from results.",
