@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -340,12 +341,13 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
         return data
 
     async def _enrich_platform(self, data: dict) -> dict:
-        """Annotate each public-transport leg in *data* with ``_realtime_platform``.
+        """Annotate each public-transport leg in *data* with realtime info.
 
         Resolves a Realtime API key from any departure/arrival entry in hass.data,
         then issues one Timetable API call per unique leg-origin stop ID (batched
-        concurrently). Each matching leg gets ``_realtime_platform`` set to the
-        platform designation string (empty string when no match found).
+        concurrently). Each matching leg gets its platform designation, expected
+        (realtime) departure time, delay and cancellation status attached
+        (falling back to scheduled/empty values when no match is found).
         """
         # Resolve Realtime API key from a departure/arrival sensor entry
         realtime_key: str | None = None
@@ -388,12 +390,13 @@ async def enrich_platform_for_trips(
     realtime_api_key: str,
     session,
 ) -> None:
-    """Annotate public-transport legs in *trips* with ``_realtime_platform``.
+    """Annotate public-transport legs in *trips* with realtime cross-check data.
 
     Modifies the raw Resrobot trip dicts in-place. Each public-transport leg
-    (type not in WALK/TRSF) whose ``Origin.extId`` is non-empty gets a
-    ``_realtime_platform`` key set to the platform designation string from the
-    Timetable Realtime API (empty string when no match is found).
+    (type not in WALK/TRSF) whose ``Origin.extId`` is non-empty gets
+    ``_realtime_platform``, ``_realtime_expected_time``, ``_realtime_delay``,
+    ``_realtime_canceled`` and ``_is_realtime`` keys set from the matching
+    Timetable Realtime API call (empty/zero/False values when no match found).
 
     Issues one Timetable API call per unique origin stop ID, batched concurrently,
     each covering a 60-minute window starting from the earliest departure at that stop.
@@ -456,12 +459,12 @@ async def enrich_platform_for_trips(
     )
 
     # ------------------------------------------------------------------
-    # 3. Build per-stop lookup: {stop_id: {(designation, "HH:MM"): platform}}
+    # 3. Build per-stop lookup: {stop_id: {(designation, "HH:MM"): call_info}}
     # ------------------------------------------------------------------
-    stop_lookup: dict[str, dict[tuple[str, str], str]] = {}
+    stop_lookup: dict[str, dict[tuple[str, str], dict[str, Any]]] = {}
     for stop_id, result in results:
         departures: list = (result or {}).get("departures") or []
-        lookup: dict[tuple[str, str], str] = {}
+        lookup: dict[tuple[str, str], dict[str, Any]] = {}
         for dep in departures:
             route = (dep or {}).get("route") or {}
             designation = str(route.get("designation", "")).strip()
@@ -480,7 +483,15 @@ async def enrich_platform_for_trips(
             )
             key = (designation, hhmm)
             if key not in lookup:  # keep first match (ambiguity is rare)
-                lookup[key] = platform_str
+                # Normalize "T" separator to match Resrobot's space-separated origin_time format
+                expected_time = str(dep.get("realtime", "") or scheduled).replace("T", " ")
+                lookup[key] = {
+                    "platform": platform_str,
+                    "expected_time": expected_time,
+                    "delay": int(dep.get("delay", 0) or 0),
+                    "canceled": bool(dep.get("canceled", False)),
+                    "is_realtime": bool(dep.get("is_realtime", False)),
+                }
         stop_lookup[stop_id] = lookup
 
     # ------------------------------------------------------------------
@@ -506,5 +517,9 @@ async def enrich_platform_for_trips(
             ).strip()
             time_str = origin.get("time", "")
             hhmm = time_str[:5] if len(time_str) >= 5 else ""
-            platform = stop_lookup[ext_id].get((designation, hhmm), "")
-            leg["_realtime_platform"] = platform
+            call_info = stop_lookup[ext_id].get((designation, hhmm), {})
+            leg["_realtime_platform"] = call_info.get("platform", "")
+            leg["_realtime_expected_time"] = call_info.get("expected_time", "")
+            leg["_realtime_delay"] = call_info.get("delay", 0)
+            leg["_realtime_canceled"] = call_info.get("canceled", False)
+            leg["_is_realtime"] = call_info.get("is_realtime", False)
