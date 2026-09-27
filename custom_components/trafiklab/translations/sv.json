@@ -43,12 +43,12 @@
           "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
-          "include_platform": "Inkludera plattform (kors-kontroll mot Tidtabell Realtids-API)",
+          "include_platform": "Inkludera realtidsinfo (plattform och förseningar)",
           "max_results": "Maximalt antal resultat (resor att visa)"
         },
         "data_description": {
           "transport_modes": "Lämna tomt för att inkludera alla transportmedel. OBS: Om valt exkluderas gång- och bytessträckor från resultaten.",
-          "include_platform": "När aktiverat matchas varje kollektivtrafiksträcka mot Tidtabell Realtids-API för att hämta avgångsplattform. Kräver en konfigurerad avgångs- eller ankomstsensor. Ett extra API-anrop per unik ursprungshållplats görs vid varje uppdatering."
+          "include_platform": "När aktiverat matchas varje kollektivtrafiksträcka mot Tidtabell Realtids-API för att hämta avgångsplattform, försening och uppdaterad avgångstid. Kräver en konfigurerad avgångs- eller ankomstsensor. Ett extra API-anrop per unik ursprungshållplats görs vid varje uppdatering."
         }
       },
       "sensor": {
@@ -176,12 +176,12 @@
           "transport_modes": "Transportmedel (lämna tomt för alla)",
           "time_window": "Tidsfönster (minuter framåt att söka)",
           "refresh_interval": "Datauppdateringsintervall (sekunder)",
-          "include_platform": "Inkludera plattform (kors-kontroll mot Tidtabell Realtids-API)",
+          "include_platform": "Inkludera realtidsinfo (plattform och förseningar)",
           "max_results": "Maximalt antal resultat (resor att visa)"
         },
         "data_description": {
           "transport_modes": "Lämna tomt för att inkludera alla transportmedel. OBS: Om valt exkluderas gång- och bytessträckor från resultaten.",
-          "include_platform": "När aktiverat matchas varje kollektivtrafiksträcka mot Tidtabell Realtids-API för att hämta avgångsplattform. Kräver en konfigurerad avgångs- eller ankomstsensor. Ett extra API-anrop per unik ursprungshållplats görs vid varje uppdatering."
+          "include_platform": "När aktiverat matchas varje kollektivtrafiksträcka mot Tidtabell Realtids-API för att hämta avgångsplattform, försening och uppdaterad avgångstid. Kräver en konfigurerad avgångs- eller ankomstsensor. Ett extra API-anrop per unik ursprungshållplats görs vid varje uppdatering."
         }
       }
     }
