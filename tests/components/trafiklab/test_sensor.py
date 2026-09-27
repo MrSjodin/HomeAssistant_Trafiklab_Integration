@@ -331,6 +331,48 @@ def _make_departure_item(designation: str, transport_mode: str, direction: str =
 
 
 @pytest.mark.asyncio
+async def test_upcoming_exposes_route_and_trip_metadata(hass: HomeAssistant) -> None:
+    populated_item = _make_departure_item("52", "BUS", "Olofström via Karlshamn")
+    populated_item["route"]["origin"] = {"name": "Kungsplan"}
+    populated_item["route"]["destination"] = {"name": "Olofströms resecentrum"}
+    populated_item["trip"]["start_date"] = "2026-09-25"
+    missing_metadata_item = _make_departure_item("53", "BUS")
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "key", "stop_id": "740098000", "name": "Metadata", "sensor_type": "departure"},
+        options={"time_window": 120, "refresh_interval": 300},
+        unique_id="upcoming_metadata",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        return_value={"departures": [populated_item, missing_metadata_item]},
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    from homeassistant.helpers import entity_registry as er
+
+    ent_reg = er.async_get(hass)
+    entity_id = ent_reg.async_get_entity_id(
+        "sensor", "trafiklab", f"{entry.entry_id}_next_departure"
+    )
+    assert entity_id is not None
+    upcoming = hass.states.get(entity_id).attributes["upcoming"]
+
+    assert upcoming[0]["destination"] == "Olofström via Karlshamn"
+    assert upcoming[0]["origin"] == "Kungsplan"
+    assert upcoming[0]["final_destination"] == "Olofströms resecentrum"
+    assert upcoming[0]["trip_id"] == "trip_52"
+    assert upcoming[0]["trip_start_date"] == "2026-09-25"
+    assert upcoming[1]["origin"] == ""
+    assert upcoming[1]["final_destination"] == ""
+    assert upcoming[1]["trip_start_date"] == ""
+
+
+@pytest.mark.asyncio
 async def test_departure_sensor_filters_by_transport_mode(hass: HomeAssistant) -> None:
     """Items whose transport_mode is not in transport_modes must be excluded."""
     bus_item = _make_departure_item("52", "BUS")
