@@ -238,7 +238,9 @@ The `upcoming` attribute contains an array of upcoming departures/arrivals, limi
 {
   "index": 0,                           // Position in list (0-based)
   "line": "7",                          // Line number/designation
-  "destination": "Karolinska Institutet", // Where it's going
+  "destination": "Karolinska Institutet", // Displayed direction/headsign
+  "origin": "Kungsplan",                  // First stop on the route
+  "final_destination": "Olofströms resecentrum", // Last stop on the route
   "direction": "1",                     // User-configured direction filter
   "scheduled_time": "2025-08-08T14:30:00", // Raw scheduled time
   "expected_time": "2025-08-08T14:32:00",  // Raw real-time
@@ -252,7 +254,8 @@ The `upcoming` attribute contains an array of upcoming departures/arrivals, limi
   "platform": "A",                     // Platform/stop position
   "route_name": "Blå linjen",          // Route name if available
   "agency": "SL",                       // Transport agency
-  "trip_id": "123456789"               // Unique trip identifier
+  "trip_id": "123456789",                // Unique trip identifier
+  "trip_start_date": "2026-09-25"         // Scheduled start date; pair with trip_id for trip lookup
 }
 ```
 
