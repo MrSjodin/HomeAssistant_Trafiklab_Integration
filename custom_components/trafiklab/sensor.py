@@ -138,13 +138,14 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             # Find first leg within time window from sorted trips/legs
             for trip in trips_sorted:
                 for leg in trip.get("legs", []):
-                    origin_time = leg.get("origin_time", "")
-                    if not origin_time:
+                    # Prefer realtime-adjusted time (cross-checked via include_platform) over scheduled
+                    departure_time = leg.get("expected_time") or leg.get("origin_time", "")
+                    if not departure_time:
                         continue
                     try:
                         for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
                             try:
-                                dt = datetime.strptime(origin_time, fmt)
+                                dt = datetime.strptime(departure_time, fmt)
                                 break
                             except ValueError:
                                 dt = None
@@ -427,9 +428,10 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                 dur_iso = (leg or {}).get("duration") or ((leg or {}).get("GisRoute") or {}).get("durS")
                 duration_minutes = parse_iso_duration_minutes(dur_iso)
 
+                origin_time_str = f"{origin.get('date', '')} {origin.get('time', '')}".strip()
                 leg_dict = {
                     "origin_name": origin.get("name", ""),
-                    "origin_time": f"{origin.get('date', '')} {origin.get('time', '')}".strip(),
+                    "origin_time": origin_time_str,
                     "dest_name": dest.get("name", ""),
                     "dest_time": f"{dest.get('date', '')} {dest.get('time', '')}".strip(),
                     # Apply translation so 'type' is human readable (Public Transport/Transfer/Walk to/from)
@@ -443,6 +445,11 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                     "category": category_full,
                     # Platform from Timetable API cross-check (empty when not enriched or no match)
                     "platform": leg.get("_realtime_platform", ""),
+                    # Realtime cross-check (falls back to scheduled origin_time when not enriched/no match)
+                    "expected_time": leg.get("_realtime_expected_time") or origin_time_str,
+                    "real_time": bool(leg.get("_is_realtime", False)),
+                    "delay": int(leg.get("_realtime_delay", 0) or 0),
+                    "canceled": bool(leg.get("_realtime_canceled", False)),
                 }
                 # attach parsed dt for sorting
                 leg_dt = parse_dt(origin.get("date", ""), origin.get("time", ""))
