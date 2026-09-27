@@ -273,6 +273,12 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                     "line": (item.get("route") or {}).get("designation", "") or "Unknown",
                     "destination": (item.get("route") or {}).get("direction", "")
                     or "Unknown",
+                    "origin": ((item.get("route") or {}).get("origin") or {}).get("name", "")
+                    or "",
+                    "final_destination": ((item.get("route") or {}).get("destination") or {}).get(
+                        "name", ""
+                    )
+                    or "",
                     "direction": configured_direction,
                     "scheduled_time": scheduled_time,
                     "expected_time": realtime_time,
@@ -293,6 +299,7 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
                     "route_name": (item.get("route") or {}).get("name", "") or "",
                     "agency": (item.get("agency") or {}).get("name", "") or "",
                     "trip_id": (item.get("trip") or {}).get("trip_id", "") or "",
+                    "trip_start_date": (item.get("trip") or {}).get("start_date", "") or "",
                 }
             )
         return upcoming
