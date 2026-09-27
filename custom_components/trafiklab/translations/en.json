@@ -43,12 +43,12 @@
           "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
-          "include_platform": "Include platform (cross-checks Timetable Realtime API)",
+          "include_platform": "Include realtime info (platform & delays)",
           "max_results": "Maximum Number of Results (trips to return)"
         },
         "data_description": {
           "transport_modes": "Leave empty to include all modes. Note: if set, walk and transfer legs will be excluded from results.",
-          "include_platform": "When enabled, each public-transport leg is matched against the Timetable Realtime API to resolve the departure platform. Requires a configured departure or arrival sensor. One extra API call per unique origin stop is made on each refresh."
+          "include_platform": "When enabled, each public-transport leg is matched against the Timetable Realtime API to resolve the departure platform, delay, and updated departure time. Requires a configured departure or arrival sensor. One extra API call per unique origin stop is made on each refresh."
         }
       },
       "sensor": {
@@ -176,12 +176,12 @@
           "transport_modes": "Transport Mode(s) (leave empty for all)",
           "time_window": "Time Window (minutes ahead to search)",
           "refresh_interval": "Data Refresh Interval (seconds)",
-          "include_platform": "Include platform (cross-checks Timetable Realtime API)",
+          "include_platform": "Include realtime info (platform & delays)",
           "max_results": "Maximum Number of Results (trips to return)"
         },
         "data_description": {
           "transport_modes": "Leave empty to include all modes. Note: if set, walk and transfer legs will be excluded from results.",
-          "include_platform": "When enabled, each public-transport leg is matched against the Timetable Realtime API to resolve the departure platform. Requires a configured departure or arrival sensor. One extra API call per unique origin stop is made on each refresh."
+          "include_platform": "When enabled, each public-transport leg is matched against the Timetable Realtime API to resolve the departure platform, delay, and updated departure time. Requires a configured departure or arrival sensor. One extra API call per unique origin stop is made on each refresh."
         }
       }
     }

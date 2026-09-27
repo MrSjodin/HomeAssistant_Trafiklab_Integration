@@ -69,7 +69,9 @@ This integration is entirely community-developed and is not developed by, or in 
 2. Find the area/stop ID for your desired stop using the Stop Lookup service (see below)
 3. Use Home Assistant 2024.8.0 or newer
 
-Note about Resrobot: Trip planning uses Resrobot Travel Search which requires its own API key, requested from the same Trafiklab website where you request the Realtime API key. Make sure to activate/request both keys if you plan to use both sensor types.
+**Note about Resrobot:** Trip planning uses Resrobot Travel Search which requires its own API key, requested from the same Trafiklab website where you request the Realtime API key. Make sure to activate/request both keys if you plan to use both sensor types.
+
+**Note about API cross-checking:** The Resrobot Travel Search sensor is able to cross-check for realtime data using the Realtime API if possible. Therefore I strongly recommend that you get API keys for both, and set up at least one Arrival/Departure sensor prior to configuring a Resrobot sensor (the Realtime API key is then looked up automatically by the Resrobot sensor).
 
 ## Configuration
 
@@ -186,6 +188,21 @@ options:
   max_results: 25
 ```
 
+#### Realtime Delay Cross-Check (new in v1.1.0)
+
+Travel Search sensors support an optional **Include platform** setting (`include_platform`) that cross-checks each public-transport leg against the Trafiklab Realtime Timetable API — the same cross-check used internally by Departure/Arrival sensors. Originally platform-only, it now also resolves each leg's delay, cancellation status, and updated (realtime) departure time.
+
+Requires a **Departure or Arrival sensor** configured elsewhere in the integration; its Realtime API key is reused automatically, no separate key needed. One extra API call is made per unique origin stop on each refresh.
+
+When enabled:
+- Each leg gains `platform`, `expected_time`, `real_time`, `delay`, and `canceled` attributes (see [Travel Search Trips Array Structure](#travel-search-trips-array-structure)).
+- The sensor's minutes-until-departure state, and the time-window filter, use the realtime-adjusted time instead of the static timetable time, so delays are reflected in the countdown.
+
+```yaml
+options:
+  include_platform: true
+```
+
 
 ### Sensor Attributes
 
@@ -216,7 +233,12 @@ The `trips` attribute on Travel Search sensors contains a sorted array of trips,
   "legs": [
     {
       "origin_name": "Stockholm C",     // Departure stop name
-      "origin_time": "2025-08-08 14:30:00", // Departure date+time
+      "origin_time": "2025-08-08 14:30:00", // Scheduled departure date+time
+      "expected_time": "2025-08-08 14:32:00", // Realtime-adjusted departure time (requires include_platform; falls back to origin_time)
+      "real_time": true,                 // Whether realtime data was found for this leg (requires include_platform)
+      "delay": 120,                       // Delay in seconds (requires include_platform)
+      "canceled": false,                  // Whether this departure is canceled (requires include_platform)
+      "platform": "3",                    // Departure platform (requires include_platform)
       "dest_name": "Uppsala C",         // Arrival stop name
       "dest_time": "2025-08-08 15:15:00",   // Arrival date+time
       "type": "Public Transport",        // Leg type (Public Transport / Transfer / Walk to/from)

@@ -96,6 +96,10 @@ _TIMETABLE_DEPARTURES = {
     "departures": [
         {
             "scheduled": "2025-01-01T10:00:00",
+            "realtime": "2025-01-01T10:02:30",
+            "delay": 150,
+            "canceled": False,
+            "is_realtime": True,
             "realtime_platform": {"designation": "3"},
             "scheduled_platform": {"designation": "3"},
             "route": {"designation": "52"},
@@ -167,6 +171,10 @@ async def test_coordinator_resrobot_platform_enriched(hass: HomeAssistant) -> No
     assert leg.get("_realtime_platform") == "3", (
         f"Expected leg to have _realtime_platform='3', got {leg.get('_realtime_platform')!r}"
     )
+    assert leg.get("_realtime_expected_time") == "2025-01-01 10:02:30"
+    assert leg.get("_realtime_delay") == 150
+    assert leg.get("_realtime_canceled") is False
+    assert leg.get("_is_realtime") is True
 
 
 @pytest.mark.asyncio
@@ -205,6 +213,7 @@ async def test_coordinator_resrobot_platform_no_realtime_key(hass: HomeAssistant
     if trips:
         leg = trips[0]["LegList"]["Leg"][0]
         assert "_realtime_platform" not in leg
+        assert "_realtime_delay" not in leg
 
 
 # ---------------------------------------------------------------------------
