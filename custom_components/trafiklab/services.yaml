@@ -157,3 +157,36 @@ travel_search:
       default: false
       selector:
         boolean:
+
+trip_details:
+  name: Trip details
+  description: Get the route and stop-by-stop details for a specific Trafiklab Realtime trip.
+  fields:
+    api_key:
+      name: API Key
+      description: Your Trafiklab Realtime API key. Omit to use the key from a configured departure or arrival sensor.
+      required: false
+      selector:
+        text:
+          type: password
+    config_entry_id:
+      name: Config entry ID
+      description: Specific departure or arrival entry to take the Realtime API key from. Ignored when api_key is provided.
+      required: false
+      selector:
+        config_entry:
+          integration: trafiklab
+    trip_id:
+      name: Trip ID
+      description: Trip identifier exposed by an upcoming departure or arrival.
+      required: true
+      example: "121120000398892276"
+      selector:
+        text:
+    start_date:
+      name: Start date
+      description: Scheduled planning date for the trip in YYYY-MM-DD format, exposed as trip_start_date by upcoming sensors.
+      required: true
+      example: "2026-09-26"
+      selector:
+        date:

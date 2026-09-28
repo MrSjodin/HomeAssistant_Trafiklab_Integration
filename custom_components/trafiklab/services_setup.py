@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import date
 from typing import Any
 
 import voluptuous as vol
@@ -17,6 +18,7 @@ from .const import (
     SERVICE_STOP_LOOKUP,
     SERVICE_UPDATE_NOW,
     SERVICE_TRAVEL_SEARCH,
+    SERVICE_TRIP_DETAILS,
     CONF_API_KEY,
     CONF_ORIGIN,
     CONF_ORIGIN_TYPE,
@@ -28,6 +30,9 @@ from .const import (
     CONF_TRANSPORT_MODES,
     ATTR_SEARCH_QUERY,
     ATTR_STOPS_FOUND,
+    ATTR_CONFIG_ENTRY_ID,
+    ATTR_TRIP_ID,
+    ATTR_START_DATE,
     RESROBOT_PRODUCTS_MAP,
     CONF_SENSOR_TYPE,
     SENSOR_TYPE_DEPARTURE,
@@ -72,6 +77,24 @@ TRAVEL_SEARCH_SCHEMA = vol.Schema({
 })
 
 
+def _validate_trip_start_date(value: str) -> str:
+    """Validate the YYYY-MM-DD planning date required by the Realtime API."""
+    try:
+        if date.fromisoformat(value).isoformat() != value:
+            raise ValueError
+    except ValueError as err:
+        raise vol.Invalid("Expected a date in YYYY-MM-DD format") from err
+    return value
+
+
+TRIP_DETAILS_SCHEMA = vol.Schema({
+    vol.Optional(CONF_API_KEY): cv.string,
+    vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
+    vol.Required(ATTR_TRIP_ID): vol.All(cv.string, vol.Length(min=1)),
+    vol.Required(ATTR_START_DATE): vol.All(cv.string, _validate_trip_start_date),
+})
+
+
 def _resolve_realtime_api_key(hass: HomeAssistant, call_data: dict) -> str | None:
     """Resolve a Realtime API key for the stop-lookup / departure / arrival APIs.
 
@@ -83,7 +106,7 @@ def _resolve_realtime_api_key(hass: HomeAssistant, call_data: dict) -> str | Non
     if key := call_data.get(CONF_API_KEY):
         return key
     domain_data: dict = hass.data.get(DOMAIN, {})
-    entry_id: str | None = call_data.get("config_entry_id")
+    entry_id: str | None = call_data.get(ATTR_CONFIG_ENTRY_ID)
     if entry_id:
         coordinator = domain_data.get(entry_id)
         if coordinator is None:
@@ -554,6 +577,57 @@ def async_setup_services(hass: HomeAssistant) -> None:
             supports_response=True,
         )
         _LOGGER.info("[Trafiklab] Registered service %s.%s", DOMAIN, SERVICE_TRAVEL_SEARCH)
+
+    if not hass.services.has_service(DOMAIN, SERVICE_TRIP_DETAILS):
+
+        async def handle_trip_details(call: ServiceCall) -> dict[str, Any]:
+            """Return route and stop details for a specific Realtime trip."""
+            trip_id: str = call.data[ATTR_TRIP_ID]
+            start_date: str = call.data[ATTR_START_DATE]
+            api_key = _resolve_realtime_api_key(hass, call.data)
+            if not api_key:
+                return {
+                    ATTR_TRIP_ID: trip_id,
+                    ATTR_START_DATE: start_date,
+                    "error": (
+                        "No Realtime API key available — add a departure or arrival sensor "
+                        "or pass api_key explicitly"
+                    ),
+                }
+
+            session = async_get_clientsession(hass)
+            async with TrafikLabApiClient(api_key, session=session) as client:
+                try:
+                    result = await client.get_trip_details(trip_id, start_date)
+                    route = result.get("route") or {}
+                    trip = result.get("trip") or {}
+                    return {
+                        **result,
+                        ATTR_TRIP_ID: trip.get(ATTR_TRIP_ID) or trip_id,
+                        ATTR_START_DATE: trip.get(ATTR_START_DATE) or start_date,
+                        "line": route.get("designation"),
+                        "transport_mode": route.get("transport_mode"),
+                        "headsign": route.get("direction"),
+                        "origin": (route.get("origin") or {}).get("name"),
+                        "destination": (route.get("destination") or {}).get("name"),
+                        "calls": result.get("calls") or [],
+                    }
+                except Exception as err:
+                    _LOGGER.error("Error during trip details lookup: %s", err)
+                    return {
+                        ATTR_TRIP_ID: trip_id,
+                        ATTR_START_DATE: start_date,
+                        "error": str(err),
+                    }
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_TRIP_DETAILS,
+            handle_trip_details,
+            schema=TRIP_DETAILS_SCHEMA,
+            supports_response=True,
+        )
+        _LOGGER.info("[Trafiklab] Registered service %s.%s", DOMAIN, SERVICE_TRIP_DETAILS)
 
 
 def async_remove_services(hass: HomeAssistant) -> None:
