@@ -4,13 +4,22 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import voluptuous as vol
 from typing import Any
 
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.trafiklab.const import DOMAIN, SERVICE_STOP_LOOKUP, SERVICE_UPDATE_NOW, SERVICE_TRAVEL_SEARCH
+from custom_components.trafiklab.const import (
+    DOMAIN,
+    SERVICE_STOP_LOOKUP,
+    SERVICE_UPDATE_NOW,
+    SERVICE_TRAVEL_SEARCH,
+    SERVICE_TRIP_DETAILS,
+    ATTR_CONFIG_ENTRY_ID,
+)
+from custom_components.trafiklab.services_setup import TRIP_DETAILS_SCHEMA
 
 pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
@@ -683,3 +692,167 @@ async def test_travel_search_valid_coordinates_accepted(hass: Any, setup_integra
     mock_trip.assert_called_once()
     assert "error" not in response
     assert response["total_trips"] == 1
+
+
+_TRIP_DETAILS_ID = "121120000398892276"
+_TRIP_DETAILS_DATE = "2026-09-26"
+_TRIP_DETAILS_RESPONSE = {
+    "timestamp": "2026-09-26T09:00:00",
+    "route": {
+        "designation": "802",
+        "transport_mode": "TRAIN",
+        "direction": "Copenhagen H",
+        "origin": {"id": "stop-a", "name": "Karlskrona Centralstation"},
+        "destination": {"id": "stop-b", "name": "Copenhagen H"},
+    },
+    "trip": {"trip_id": _TRIP_DETAILS_ID, "start_date": _TRIP_DETAILS_DATE},
+    "calls": [
+        {
+            "scheduledDeparture": "2026-09-26T09:00:00",
+            "realtimeDeparture": "2026-09-26T09:02:00",
+            "scheduledArrival": "2026-09-26T09:00:00",
+            "realtimeArrival": "2026-09-26T09:02:00",
+            "stop": {"id": "stop-a", "name": "Karlskrona Centralstation"},
+            "scheduled_platform": {"designation": "1"},
+            "realtime_platform": {"designation": "2"},
+            "alerts": [],
+            "is_realtime": True,
+        }
+    ],
+}
+
+
+@pytest.mark.asyncio
+async def test_trip_details_service_returns_route_and_full_calls(
+    hass: Any, setup_integration: bool
+) -> None:
+    """The response adds issue-style summary fields without dropping API details."""
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_trip_details",
+        return_value=_TRIP_DETAILS_RESPONSE,
+    ) as mock_trip:
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_TRIP_DETAILS,
+            {
+                "api_key": "realtime-key",
+                "trip_id": _TRIP_DETAILS_ID,
+                "start_date": _TRIP_DETAILS_DATE,
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_trip.assert_called_once_with(_TRIP_DETAILS_ID, _TRIP_DETAILS_DATE)
+    assert response["line"] == "802"
+    assert response["transport_mode"] == "TRAIN"
+    assert response["headsign"] == "Copenhagen H"
+    assert response["origin"] == "Karlskrona Centralstation"
+    assert response["destination"] == "Copenhagen H"
+    assert response["timestamp"] == _TRIP_DETAILS_RESPONSE["timestamp"]
+    assert response["route"] == _TRIP_DETAILS_RESPONSE["route"]
+    assert response["calls"] == _TRIP_DETAILS_RESPONSE["calls"]
+
+
+@pytest.mark.asyncio
+async def test_trip_details_service_requires_realtime_key(
+    hass: Any, setup_integration: bool
+) -> None:
+    response = await hass.services.async_call(
+        DOMAIN,
+        SERVICE_TRIP_DETAILS,
+        {"trip_id": _TRIP_DETAILS_ID, "start_date": _TRIP_DETAILS_DATE},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response["trip_id"] == _TRIP_DETAILS_ID
+    assert "Realtime API key" in response["error"]
+
+
+@pytest.mark.asyncio
+async def test_trip_details_service_uses_departure_entry_key(hass: HomeAssistant) -> None:
+    """An active departure entry supplies the Realtime key when omitted."""
+    from tests.components.trafiklab.const import ENTRY_DATA_DEPARTURE, ENTRY_OPTIONS_DEFAULT
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=ENTRY_DATA_DEPARTURE,
+        options=ENTRY_OPTIONS_DEFAULT,
+        unique_id="test-trip-details-key-resolution",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.trafiklab.coordinator.TrafikLabCoordinator._async_update_data",
+        return_value={},
+    ):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_trip_details",
+        return_value=_TRIP_DETAILS_RESPONSE,
+    ) as mock_trip:
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_TRIP_DETAILS,
+            {"trip_id": _TRIP_DETAILS_ID, "start_date": _TRIP_DETAILS_DATE},
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_trip.assert_called_once_with(_TRIP_DETAILS_ID, _TRIP_DETAILS_DATE)
+    assert response["calls"] == _TRIP_DETAILS_RESPONSE["calls"]
+
+
+@pytest.mark.asyncio
+async def test_trip_details_service_rejects_unknown_config_entry(
+    hass: Any, setup_integration: bool
+) -> None:
+    with pytest.raises(HomeAssistantError, match="not found"):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_TRIP_DETAILS,
+            {
+                ATTR_CONFIG_ENTRY_ID: "does-not-exist",
+                "trip_id": _TRIP_DETAILS_ID,
+                "start_date": _TRIP_DETAILS_DATE,
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+
+def test_trip_details_schema_rejects_invalid_start_date() -> None:
+    with pytest.raises(vol.Invalid):
+        TRIP_DETAILS_SCHEMA(
+            {
+                "trip_id": _TRIP_DETAILS_ID,
+                "start_date": "2026-02-30",
+            }
+        )
+
+
+@pytest.mark.asyncio
+async def test_trip_details_service_returns_api_error(
+    hass: Any, setup_integration: bool
+) -> None:
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_trip_details",
+        side_effect=RuntimeError("network failure"),
+    ):
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_TRIP_DETAILS,
+            {
+                "api_key": "realtime-key",
+                "trip_id": _TRIP_DETAILS_ID,
+                "start_date": _TRIP_DETAILS_DATE,
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert response["trip_id"] == _TRIP_DETAILS_ID
+    assert "network failure" in response["error"]
