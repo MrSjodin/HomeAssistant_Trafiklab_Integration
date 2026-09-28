@@ -22,6 +22,7 @@ This integration is entirely community-developed and is not developed by, or in 
   - [Travel Search](#travel-search-service)
   - [Update Now](#update-now-service)
   - [Stop ID Lookup](#stop-id-lookup-service)
+  - [Trip Lookup](#trip-details-service)
 - [Dashboard & Lovelace Cards](#dashboard--lovelace-cards)
 - [Automation Examples](#automation-examples)
 - [Operators](#operators)
@@ -655,6 +656,21 @@ automation:
 ### Stop ID Lookup Service
 
 Before you can configure a departure, arrival, or travel search sensor you need the **stop ID** for your location. The `trafiklab.stop_lookup` service lets you find it directly from Home Assistant without leaving the UI.
+
+### Trip Details Service
+
+Look up the complete route for one departure or arrival on demand. Use the `trip_id` and `trip_start_date` attributes exposed by an upcoming sensor; pass `trip_start_date` to the service as `start_date`. The service does not add trip-detail requests to regular sensor updates.
+
+```yaml
+service: trafiklab.trip_details
+data:
+  trip_id: "121120000398892276"
+  start_date: "2026-09-26"
+```
+
+The service returns route summary fields (`line`, `transport_mode`, `headsign`, `origin`, and `destination`) alongside the original Trafiklab response and its full `calls` list. Each call includes the available scheduled and realtime arrivals/departures, stop, platforms, alerts, cancellation state, and realtime status. An `api_key` may be supplied explicitly; otherwise the service uses the selected `config_entry_id` or an available Departure/Arrival sensor's Realtime key.
+
+**Note:** Trafiklab Trips API is currently in beta - it might change without further notice causing this service to fail. If you find it to fail, please create an issue (or contribute with changes needed).
 
 #### Getting started — before your first sensor
 
