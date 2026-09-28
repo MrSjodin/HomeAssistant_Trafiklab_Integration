@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import Any
+from urllib.parse import quote
 
 import aiohttp
 
@@ -12,6 +13,7 @@ from .const import (
     DEPARTURES_ENDPOINT,
     ARRIVALS_ENDPOINT,
     STOP_LOOKUP_ENDPOINT,
+    TRIP_DETAILS_ENDPOINT,
     RESROBOT_BASE_URL,
     RESROBOT_TRAVEL_SEARCH_ENDPOINT,
     RESROBOT_LOCATION_ENDPOINT,
@@ -286,6 +288,37 @@ class TrafikLabApiClient:
             async with self.session.get(url, params=params) as response:
                 if response.status == 200:
                     return await response.json()
+                response_text = await response.text()
+                json_body: dict | None = None
+                try:
+                    json_body = await response.json(content_type=None)
+                except Exception:
+                    pass
+                _raise_realtime_error(response.status, response_text, json_body)
+        except asyncio.TimeoutError as err:
+            raise TrafikLabApiError("Request timed out") from err
+        except TrafikLabApiError:
+            raise
+        except aiohttp.ClientError as err:
+            raise TrafikLabApiError(f"Request failed: {err}") from err
+
+    async def get_trip_details(
+        self,
+        trip_id: str,
+        start_date: str,
+    ) -> dict[str, Any]:
+        """Get all calls and route details for a specific trip."""
+        url = (
+            f"{API_BASE_URL}{TRIP_DETAILS_ENDPOINT}/"
+            f"{quote(trip_id, safe='')}/{quote(start_date, safe='')}"
+        )
+        params = {"key": self.api_key}
+
+        try:
+            async with self.session.get(url, params=params) as response:
+                if response.status == 200:
+                    return await response.json()
+
                 response_text = await response.text()
                 json_body: dict | None = None
                 try:
