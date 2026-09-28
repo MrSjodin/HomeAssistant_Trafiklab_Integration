@@ -190,12 +190,12 @@ options:
 
 #### Realtime Delay Cross-Check (new in v1.1.0)
 
-Travel Search sensors support an optional **Include platform** setting (`include_platform`) that cross-checks each public-transport leg against the Trafiklab Realtime Timetable API — the same cross-check used internally by Departure/Arrival sensors. Originally platform-only, it now also resolves each leg's delay, cancellation status, and updated (realtime) departure time.
+Travel Search sensors and the `trafiklab.travel_search` service support realtime cross-checking for each public-transport leg against the Trafiklab Realtime Timetable API — the same cross-check used internally by Departure/Arrival sensors. It resolves each leg's platform, delay, cancellation status, and updated (realtime) departure time.
 
-Requires a **Departure or Arrival sensor** configured elsewhere in the integration; its Realtime API key is reused automatically, no separate key needed. One extra API call is made per unique origin stop on each refresh.
+For a Travel Search sensor, enable the **Include platform** option (`include_platform`). A configured Departure or Arrival sensor is required so its Realtime API key can be reused automatically. For the `trafiklab.travel_search` service, pass `include_platform: true`; provide `realtime_api_key` explicitly or let the service reuse the key from a configured Departure or Arrival sensor. If no Realtime API key is available, the service returns the scheduled-time fallback values. One extra API call is made per unique origin stop on each sensor refresh or service call.
 
 When enabled:
-- Each leg gains `platform`, `expected_time`, `real_time`, `delay`, and `canceled` attributes (see [Travel Search Trips Array Structure](#travel-search-trips-array-structure)).
+- Each leg gains `platform`, `expected_time`, `real_time`, `delay`, and `canceled` fields in the sensor attributes or service response (see [Travel Search Trips Array Structure](#travel-search-trips-array-structure)). `origin_time` remains the scheduled departure; use `expected_time` for the realtime-adjusted departure. When no realtime match is available, `expected_time` falls back to `origin_time` and `real_time` is `false`.
 - The sensor's minutes-until-departure state, and the time-window filter, use the realtime-adjusted time instead of the static timetable time, so delays are reflected in the countdown.
 
 ```yaml
@@ -554,6 +554,8 @@ data:
     - train
     - bus
   max_trip_duration: 90              # exclude trips longer than 90 minutes
+  include_platform: true              # include realtime leg data
+  realtime_api_key: "your_realtime_api_key"  # optional if a Departure/Arrival sensor is configured
 ```
 
 #### Service response
@@ -568,6 +570,11 @@ trips:
     legs:
       - origin_name: "Nearest stop"
         origin_time: "2026-05-03 14:30:00"
+        expected_time: "2026-05-03 14:32:00"  # realtime departure; falls back to origin_time
+        real_time: true                       # false when realtime data was not found
+        delay: 120                            # seconds; 0 when unavailable
+        canceled: false
+        platform: "3"
         dest_name: "Stockholm C"
         dest_time: "2026-05-03 15:00:00"
         type: "Public Transport"
@@ -640,7 +647,7 @@ automation:
           message: >
             {{ journey.total_trips }} journey(s) home found.
             Next departs at
-            {{ journey.trips[0].legs[0].origin_time }}.
+            {{ journey.trips[0].legs[0].expected_time }}.
 ```
 
 ---
