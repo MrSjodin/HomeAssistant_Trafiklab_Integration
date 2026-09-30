@@ -137,7 +137,7 @@ The following operators are currently represented in the API:
 - Skånetrafiken
 - Värmlandstrafik
 - Örebro, Länstrafiken
-- Västmanland
+- Västmanland, Svealandstrafiken
 - Dalatrafik
 - X-trafik
 - Din Tur - Västernorrland
