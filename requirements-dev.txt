@@ -14,7 +14,7 @@ acme<5.9.0
 
 # pycares 5.x spawns a _run_safe_shutdown_loop thread that the HA test
 # framework's teardown assertion rejects; keep on the 4.x series.
-pycares<4.9.0
+pycares<5.3.0
 
 # Code quality
 black>=26.5.1
