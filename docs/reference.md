@@ -2,7 +2,7 @@
 
 [← Back to the main README](../README.md)
 
-Full attribute schemas for every sensor type, and complete request/response examples for all four services (`travel_search`, `update_now`, `stop_lookup`, `trip_details`).
+Full attribute schemas for every sensor type, and complete request/response examples for all five services (`travel_search`, `update_now`, `stop_lookup`, `trip_details`, `realtime_search`).
 
 ## Sensor Entity Naming
 
@@ -405,3 +405,70 @@ data:
 The service returns route summary fields (`line`, `transport_mode`, `headsign`, `origin`, and `destination`) alongside the original Trafiklab response and its full `calls` list. Each call includes the available scheduled and realtime arrivals/departures, stop, platforms, alerts, cancellation state, and realtime status. An `api_key` may be supplied explicitly; otherwise the service uses the selected `config_entry_id` or an available Departure/Arrival sensor's Realtime key.
 
 **Note:** Trafiklab Trips API is currently in beta - it might change without further notice causing this service to fail. If you find it to fail, please create an issue (or contribute with changes needed).
+
+---
+
+### Date and Time Realtime Timetable Search Service
+
+Issue a one-off Timetable (Realtime) departures/arrivals search for a specific date and time — no permanent sensor required. Returns the **same structured response** a configured Departure/Arrival sensor exposes as attributes (`line`, `destination`, `direction`, `scheduled_time`, `expected_time`, `transport_mode`, `real_time`, `delay`, `canceled`, `platform`, `upcoming`), built from the exact same normalisation/filtering code the sensors use. Requires a **Realtime API key** (the same key used by Departure/Arrival sensors).
+
+The `api_key` is optional when you already have a Departure or Arrival sensor configured; the key is resolved automatically from it (or from `config_entry_id` if supplied).
+
+> **Extra API calls:** the Timetable (Realtime) API always returns results within a fixed 60-minute window starting at the given date/time. Requesting a `time_window` greater than 60 minutes makes the service issue one extra Timetable API call per additional 60-minute chunk needed to cover the window — exactly the same `ceil(time_window / 60)` behaviour described in [Time Window Beyond 60 Minutes](#time-window-beyond-60-minutes). For example, `time_window: 180` makes 3 API calls.
+
+#### Basic example
+
+```yaml
+service: trafiklab.realtime_search
+data:
+  stop_id: "740098000"
+  datetime: "2026-11-07 21:00:00"
+```
+
+#### Full example with all options
+
+```yaml
+service: trafiklab.realtime_search
+data:
+  api_key: "your_realtime_api_key"  # optional — resolved from a Departure/Arrival sensor if omitted
+  stop_id: "740098000"
+  sensor_type: "departure"          # "departure" (default) or "arrival"
+  datetime: "2026-11-07 21:00:00"
+  time_window: 120                  # minutes ahead; >60 makes extra API calls (120 → 2 calls)
+  line_filter: "7,42X"              # optional, comma-separated line designations
+  direction: "Karolinska"           # optional, comma-separated destination substrings
+  transport_modes:                  # optional, empty = all modes
+    - bus
+    - train
+  max_results: 10                   # optional, default 10
+```
+
+#### Service response
+
+```yaml
+line: "7"
+destination: "Karolinska Institutet"
+direction: ""
+scheduled_time: "2026-11-07T21:05:00"
+expected_time: "2026-11-07T21:07:00"
+transport_mode: "BUS"
+real_time: true
+delay: 120
+canceled: false
+platform: "A"
+upcoming:
+  - index: 0
+    line: "7"
+    destination: "Karolinska Institutet"
+    # ... same fields as the sensor's upcoming array — see
+    # [Upcoming Departures/Arrivals Array Structure](#upcoming-departuresarrivals-array-structure)
+num_results: 1
+stop_id: "740098000"
+sensor_type: "departure"
+datetime: "2026-11-07T21:00:00"
+time_window: 120
+attribution: "Data from Trafiklab.se"
+integration: "trafiklab"
+```
+
+If no Realtime API key is available the response contains `upcoming: []` and an `error` field with a description, consistent with the other services.
