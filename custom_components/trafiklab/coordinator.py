@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from datetime import timedelta
 from typing import Any
 
@@ -17,7 +18,10 @@ from .const import (
     CONF_STOP_ID,
     CONF_SENSOR_TYPE,
     CONF_REFRESH_INTERVAL,
+    CONF_TIME_WINDOW,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TIME_WINDOW,
+    REALTIME_WINDOW_MINUTES,
     SENSOR_TYPE_ARRIVAL,
     SENSOR_TYPE_DEPARTURE,
     SENSOR_TYPE_RESROBOT,
@@ -186,10 +190,7 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
             else:
                 stop_id = self.entry.data[CONF_STOP_ID]
                 _LOGGER.debug("Fetching %s for stop %s", sensor_type, stop_id)
-                if sensor_type == SENSOR_TYPE_ARRIVAL:
-                    data = await self.api_client.get_arrivals(stop_id)
-                else:
-                    data = await self.api_client.get_departures(stop_id)
+                data = await self._fetch_realtime_window(sensor_type, stop_id)
                 if not data:
                     _LOGGER.warning("No data received from API")
                     raise UpdateFailed("No data received from API")
@@ -268,6 +269,87 @@ class TrafikLabCoordinator(DataUpdateCoordinator):
             }
             _LOGGER.error("Unexpected error communicating with API: %s", err)
             raise UpdateFailed(f"Error communicating with API: {err}") from err
+
+    async def _fetch_realtime_window(self, sensor_type: str, stop_id: str) -> dict:
+        """Fetch departures/arrivals for *stop_id* covering the configured time window.
+
+        The Trafiklab Timetable (Realtime) API always returns results within a fixed
+        60-minute window starting at the requested (or current) time — it has no
+        parameter to extend that window. To honour a configured time window longer
+        than 60 minutes, issue one call per additional 60-minute chunk (offset from
+        now), then merge, de-duplicate, sort and trim the combined results back down
+        to the configured window.
+        """
+        from datetime import datetime
+
+        time_window_raw = self.entry.options.get(
+            CONF_TIME_WINDOW, self.entry.data.get(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW)
+        )
+        try:
+            time_window = int(time_window_raw)
+        except (TypeError, ValueError):
+            time_window = DEFAULT_TIME_WINDOW
+
+        fetch = (
+            self.api_client.get_arrivals
+            if sensor_type == SENSOR_TYPE_ARRIVAL
+            else self.api_client.get_departures
+        )
+        result_key = "arrivals" if sensor_type == SENSOR_TYPE_ARRIVAL else "departures"
+
+        num_windows = max(1, math.ceil(time_window / REALTIME_WINDOW_MINUTES))
+        if num_windows == 1:
+            # Fast path: identical to the original single-call behaviour.
+            return await fetch(stop_id)
+
+        _LOGGER.debug(
+            "Time window of %d minutes for stop %s requires %d Timetable API calls",
+            time_window, stop_id, num_windows,
+        )
+        now = datetime.now()
+
+        async def _fetch_chunk(index: int) -> dict:
+            chunk_start = now + timedelta(minutes=index * REALTIME_WINDOW_MINUTES)
+            return await fetch(stop_id, chunk_start.strftime("%Y-%m-%dT%H:%M"))
+
+        chunks = await asyncio.gather(*[_fetch_chunk(i) for i in range(num_windows)])
+
+        merged = dict(chunks[0] or {})
+        items: list = []
+        seen_keys: set = set()
+        for chunk in chunks:
+            for item in (chunk or {}).get(result_key) or []:
+                trip = (item or {}).get("trip") or {}
+                dedupe_key = (
+                    trip.get("trip_id", ""),
+                    trip.get("start_date", ""),
+                    item.get("scheduled", ""),
+                    (item.get("route") or {}).get("designation", ""),
+                )
+                if dedupe_key in seen_keys:
+                    continue
+                seen_keys.add(dedupe_key)
+                items.append(item)
+
+        def _parse_time(item: dict) -> datetime | None:
+            raw = item.get("realtime") or item.get("scheduled") or ""
+            try:
+                return datetime.fromisoformat(raw)
+            except ValueError:
+                return None
+
+        def _within_window(item: dict) -> bool:
+            dt = _parse_time(item)
+            if dt is None:
+                # Can't parse the time — keep it rather than silently drop data.
+                return True
+            reference_now = datetime.now(dt.tzinfo) if dt.tzinfo is not None else now
+            return dt <= reference_now + timedelta(minutes=time_window)
+
+        items = [item for item in items if _within_window(item)]
+        items.sort(key=lambda item: _parse_time(item) or now)
+        merged[result_key] = items
+        return merged
 
     def _normalize_resrobot_response(self, data: dict) -> dict:
         """Ensure ResRobot response has sorted trips and legs.
