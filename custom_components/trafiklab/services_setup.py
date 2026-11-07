@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 import voluptuous as vol
@@ -19,6 +19,7 @@ from .const import (
     SERVICE_UPDATE_NOW,
     SERVICE_TRAVEL_SEARCH,
     SERVICE_TRIP_DETAILS,
+    SERVICE_REALTIME_SEARCH,
     CONF_API_KEY,
     CONF_ORIGIN,
     CONF_ORIGIN_TYPE,
@@ -28,12 +29,21 @@ from .const import (
     CONF_MAX_WALKING_DISTANCE,
     CONF_MAX_TRIP_DURATION,
     CONF_TRANSPORT_MODES,
+    CONF_STOP_ID,
+    CONF_LINE_FILTER,
+    CONF_DIRECTION,
+    CONF_TIME_WINDOW,
+    CONF_MAX_RESULTS,
+    DEFAULT_TIME_WINDOW,
+    DEFAULT_MAX_RESULTS,
     ATTR_SEARCH_QUERY,
     ATTR_STOPS_FOUND,
     ATTR_CONFIG_ENTRY_ID,
     ATTR_TRIP_ID,
     ATTR_START_DATE,
+    ATTR_DATETIME,
     RESROBOT_PRODUCTS_MAP,
+    TRANSPORT_MODES,
     CONF_SENSOR_TYPE,
     SENSOR_TYPE_DEPARTURE,
     SENSOR_TYPE_ARRIVAL,
@@ -41,8 +51,8 @@ from .const import (
     CONF_INCLUDE_PLATFORM,
     CONF_REALTIME_API_KEY,
 )
-from .coordinator import enrich_platform_for_trips
-from .sensor import normalize_resrobot_trips
+from .coordinator import enrich_platform_for_trips, fetch_realtime_window
+from .sensor import normalize_resrobot_trips, build_upcoming_array, filter_realtime_items
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,6 +102,28 @@ TRIP_DETAILS_SCHEMA = vol.Schema({
     vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
     vol.Required(ATTR_TRIP_ID): vol.All(cv.string, vol.Length(min=1)),
     vol.Required(ATTR_START_DATE): vol.All(cv.string, _validate_trip_start_date),
+})
+
+REALTIME_SEARCH_SCHEMA = vol.Schema({
+    vol.Optional(CONF_API_KEY): cv.string,
+    vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
+    vol.Required(CONF_STOP_ID): vol.All(cv.string, vol.Length(min=1)),
+    vol.Optional(CONF_SENSOR_TYPE, default=SENSOR_TYPE_DEPARTURE): vol.In(
+        [SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL]
+    ),
+    vol.Required(ATTR_DATETIME): cv.datetime,
+    vol.Optional(CONF_TIME_WINDOW, default=DEFAULT_TIME_WINDOW): vol.All(
+        vol.Coerce(int), vol.Range(min=1, max=1440)
+    ),
+    vol.Optional(CONF_LINE_FILTER, default=""): cv.string,
+    vol.Optional(CONF_DIRECTION, default=""): cv.string,
+    vol.Optional(CONF_TRANSPORT_MODES, default=list): vol.All(
+        cv.ensure_list,
+        [vol.In(list(TRANSPORT_MODES.keys()))],
+    ),
+    vol.Optional(CONF_MAX_RESULTS, default=DEFAULT_MAX_RESULTS): vol.All(
+        vol.Coerce(int), vol.Range(min=1, max=100)
+    ),
 })
 
 
@@ -628,6 +660,113 @@ def async_setup_services(hass: HomeAssistant) -> None:
             supports_response=True,
         )
         _LOGGER.info("[Trafiklab] Registered service %s.%s", DOMAIN, SERVICE_TRIP_DETAILS)
+
+    if not hass.services.has_service(DOMAIN, SERVICE_REALTIME_SEARCH):
+
+        async def handle_realtime_search(call: ServiceCall) -> dict[str, Any]:
+            """Search departures/arrivals for a stop at a specific date/time.
+
+            Returns the same structured shape as a configured Departure/Arrival
+            sensor's attributes (built from the same ``build_upcoming_array`` /
+            ``filter_realtime_items`` helpers), but for an arbitrary date/time
+            instead of "now". Time windows beyond 60 minutes make one extra
+            Timetable API call per additional 60-minute chunk (see
+            ``coordinator.fetch_realtime_window``).
+            """
+            stop_id: str = call.data[CONF_STOP_ID]
+            sensor_type: str = call.data.get(CONF_SENSOR_TYPE, SENSOR_TYPE_DEPARTURE)
+            requested_dt: datetime = call.data[ATTR_DATETIME]
+            time_window: int = call.data.get(CONF_TIME_WINDOW, DEFAULT_TIME_WINDOW)
+            line_filter: str = call.data.get(CONF_LINE_FILTER, "") or ""
+            direction: str = call.data.get(CONF_DIRECTION, "") or ""
+            transport_modes: list[str] = call.data.get(CONF_TRANSPORT_MODES) or []
+            max_results: int = call.data.get(CONF_MAX_RESULTS, DEFAULT_MAX_RESULTS)
+
+            api_key = _resolve_realtime_api_key(hass, call.data)
+            if not api_key:
+                return {
+                    CONF_STOP_ID: stop_id,
+                    CONF_SENSOR_TYPE: sensor_type,
+                    ATTR_DATETIME: requested_dt.isoformat(),
+                    CONF_TIME_WINDOW: time_window,
+                    "upcoming": [],
+                    "error": (
+                        "No Realtime API key available — add a departure or arrival sensor "
+                        "or pass api_key explicitly"
+                    ),
+                }
+
+            result_key = "arrivals" if sensor_type == SENSOR_TYPE_ARRIVAL else "departures"
+            session = async_get_clientsession(hass)
+            async with TrafikLabApiClient(api_key, session=session) as client:
+                try:
+                    data = await fetch_realtime_window(
+                        client, sensor_type, stop_id, time_window, reference_time=requested_dt
+                    )
+                except Exception as err:
+                    _LOGGER.error("Error during realtime search: %s", err)
+                    return {
+                        CONF_STOP_ID: stop_id,
+                        CONF_SENSOR_TYPE: sensor_type,
+                        ATTR_DATETIME: requested_dt.isoformat(),
+                        CONF_TIME_WINDOW: time_window,
+                        "upcoming": [],
+                        "error": str(err),
+                    }
+
+            raw_items = (data or {}).get(result_key) or []
+            items = filter_realtime_items(raw_items, line_filter, direction, transport_modes)
+            items_limited = items[:max_results]
+            upcoming = build_upcoming_array(items_limited, direction)
+
+            if items_limited:
+                first_item = items_limited[0]
+                response: dict[str, Any] = {
+                    "line": (first_item.get("route") or {}).get("designation", ""),
+                    "destination": (first_item.get("route") or {}).get("direction", ""),
+                    "direction": direction,
+                    "scheduled_time": first_item.get("scheduled", ""),
+                    "expected_time": first_item.get("realtime", ""),
+                    "transport_mode": (first_item.get("route") or {}).get("transport_mode", ""),
+                    "real_time": first_item.get("is_realtime", False),
+                    "delay": first_item.get("delay", 0),
+                    "canceled": first_item.get("canceled"),
+                    "platform": (first_item.get("realtime_platform") or {}).get("designation", ""),
+                }
+            else:
+                response = {
+                    "line": "",
+                    "destination": "",
+                    "direction": direction,
+                    "scheduled_time": "",
+                    "expected_time": "",
+                    "transport_mode": "",
+                    "real_time": False,
+                    "delay": 0,
+                    "canceled": None,
+                    "platform": "",
+                }
+
+            response.update({
+                "upcoming": upcoming,
+                "num_results": len(upcoming),
+                CONF_STOP_ID: stop_id,
+                CONF_SENSOR_TYPE: sensor_type,
+                ATTR_DATETIME: requested_dt.isoformat(),
+                CONF_TIME_WINDOW: time_window,
+                "attribution": "Data from Trafiklab.se",
+                "integration": DOMAIN,
+            })
+            return response
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REALTIME_SEARCH,
+            handle_realtime_search,
+            schema=REALTIME_SEARCH_SCHEMA,
+            supports_response=True,
+        )
+        _LOGGER.info("[Trafiklab] Registered service %s.%s", DOMAIN, SERVICE_REALTIME_SEARCH)
 
 
 def async_remove_services(hass: HomeAssistant) -> None:
