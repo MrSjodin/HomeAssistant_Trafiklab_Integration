@@ -25,7 +25,8 @@
           "max_results": "Maximalt antal resultat (avgångar/ankomster att visa)"
         },
         "data_description": {
-          "transport_modes": "Lämna tomt för att visa alla transportmedel."
+          "transport_modes": "Lämna tomt för att visa alla transportmedel.",
+          "time_window": "Tidtabell-API:et returnerar alltid ett fast 60-minutersfönster per anrop. Fönster över 60 minuter innebär ett extra API-anrop per ytterligare 60 minuter vid varje uppdatering (t.ex. 180 minuter = 3 anrop)."
         }
       },
       "resrobot": {
@@ -65,7 +66,8 @@
           "max_results": "Maximalt antal resultat (avgångar/ankomster att visa)"
         },
         "data_description": {
-          "transport_modes": "Lämna tomt för att visa alla transportmedel."
+          "transport_modes": "Lämna tomt för att visa alla transportmedel.",
+          "time_window": "Tidtabell-API:et returnerar alltid ett fast 60-minutersfönster per anrop. Fönster över 60 minuter innebär ett extra API-anrop per ytterligare 60 minuter vid varje uppdatering (t.ex. 180 minuter = 3 anrop)."
         }
       },
       "reconfigure": {
@@ -162,7 +164,8 @@
           "max_results": "Maximalt antal resultat (avgångar/ankomster att visa)"
         },
         "data_description": {
-          "transport_modes": "Lämna tomt för att visa alla transportmedel."
+          "transport_modes": "Lämna tomt för att visa alla transportmedel.",
+          "time_window": "Tidtabell-API:et returnerar alltid ett fast 60-minutersfönster per anrop. Fönster över 60 minuter innebär ett extra API-anrop per ytterligare 60 minuter vid varje uppdatering (t.ex. 180 minuter = 3 anrop)."
         }
       },
       "init_resrobot": {
@@ -190,6 +193,10 @@
     "invalid_api_key": {
       "title": "Ogiltig Trafiklab API-nyckel för {entry_title}",
       "description": "API-nyckeln konfigurerad för **{entry_title}** är ej behörig. Konfigurera om integrationen med en giltig Trafiklab API-nyckel."
+    },
+    "time_window_capped": {
+      "title": "Tidsfönster begränsat till 60 minuter för {entry_title}",
+      "description": "**{entry_title}** var tidigare konfigurerad med ett tidsfönster på {old_value} minuter. Tidtabell-API:et returnerade ändå alltid bara 60 minuters data, så inställningen hade ingen praktisk effekt. Den har nu återställts till 60 minuter. Integrationen kan göra flera API-anrop för att faktiskt täcka fönster längre än 60 minuter — om du vill ha det, konfigurera om sensorns tidsfönster under **Inställningar → Enheter och tjänster → Trafiklab**. Tänk på att detta ökar antalet API-anrop vid varje uppdatering (ett extra anrop per ytterligare 60 minuter)."
     }
   }
 }
