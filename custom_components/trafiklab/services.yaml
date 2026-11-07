@@ -159,7 +159,7 @@ travel_search:
         boolean:
 
 trip_details:
-  name: Trip details
+  name: Fetch trip details
   description: Get the route and stop-by-stop details for a specific Trafiklab Realtime trip.
   fields:
     api_key:
