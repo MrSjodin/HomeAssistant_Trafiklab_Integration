@@ -59,6 +59,8 @@ If you have no Trafiklab config entries set up yet, the stop lookup service won'
 ### Refresh interval considerations
 The refresh interval controls how often the integration fetches data from the Trafiklab API. Consider your API quota limits when setting this value. More frequent updates (lower values) consume more API calls. For example, if you have a departure sensor for a stop that updates every 5 minutes (300 seconds), that sensor alone will consume about 8.640 calls per month. Thus, you can have up to 11 departure or arrival sensors with 300 seconds update frequency to stay within the maximum initial quota.
 
+**Departure/Arrival sensors with a Time Window above 60 minutes** multiply this further: the Trafiklab Timetable API only ever returns 60 minutes of data per call, so the integration issues `ceil(time_window / 60)` calls per refresh to cover a longer window (e.g. a 180-minute window costs 3 calls per refresh instead of 1). See [Time Window Beyond 60 Minutes](reference.md#time-window-beyond-60-minutes) for details and a full cost table.
+
 ## Configuration Examples
 
 ```yaml
@@ -83,6 +85,7 @@ The refresh interval controls how often the integration fetches data from the Tr
 - Refresh Interval: 120 seconds (more frequent updates)
 
 # Example 3: All arrivals to a stop within 2 hours
+# Note: a 120-minute window needs 2 Timetable API calls per refresh (60 + 60 minutes)
 - API Key: your_api_key
 - Area ID: 740098000
 - Name: Stockholm Arrivals
