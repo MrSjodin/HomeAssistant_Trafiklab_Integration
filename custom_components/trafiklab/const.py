@@ -92,6 +92,7 @@ SERVICE_STOP_LOOKUP: Final = "stop_lookup"
 SERVICE_UPDATE_NOW: Final = "update_now"
 SERVICE_TRAVEL_SEARCH: Final = "travel_search"
 SERVICE_TRIP_DETAILS: Final = "trip_details"
+SERVICE_REALTIME_SEARCH: Final = "realtime_search"
 
 # Service fields
 ATTR_SEARCH_QUERY: Final = "search_query"
@@ -99,6 +100,7 @@ ATTR_STOPS_FOUND: Final = "stops_found"
 ATTR_CONFIG_ENTRY_ID: Final = "config_entry_id"
 ATTR_TRIP_ID: Final = "trip_id"
 ATTR_START_DATE: Final = "start_date"
+ATTR_DATETIME: Final = "datetime"
 
 # Attributes
 ATTR_STOP_NAME: Final = "stop_name"
