@@ -5,7 +5,7 @@ import pytest
 
 pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -57,6 +57,99 @@ async def test_coordinator_resrobot_normalizes(hass: HomeAssistant) -> None:
     # Coordinator data should have Trip as list
     coordinator = hass.data[DOMAIN][entry.entry_id]
     assert isinstance(coordinator.data.get("Trip"), list)
+
+
+# ---------------------------------------------------------------------------
+# Time window beyond 60 minutes (multi-call Timetable fetch) tests
+# ---------------------------------------------------------------------------
+
+def _departure_item(minutes_from_now: int, designation: str, now) -> dict:
+    from datetime import timedelta
+    dt_str = (now + timedelta(minutes=minutes_from_now)).strftime("%Y-%m-%dT%H:%M:%S")
+    return {
+        "scheduled": dt_str,
+        "realtime": dt_str,
+        "route": {"designation": designation},
+        "trip": {"trip_id": f"trip_{designation}", "start_date": "2025-01-01"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_coordinator_time_window_60_makes_single_call(hass: HomeAssistant) -> None:
+    """The default (and any <=60 minute) time_window must preserve the original single-call behaviour."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "k", "stop_id": "740098000", "name": "X", "sensor_type": "departure"},
+        options={"time_window": 60, "refresh_interval": 300},
+        unique_id="u_window_single",
+    )
+    entry.add_to_hass(hass)
+
+    mock_api = AsyncMock(return_value={"departures": []})
+    with patch("custom_components.trafiklab.api.TrafikLabApiClient.get_departures", mock_api):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        mock_api.reset_mock()
+        coordinator = hass.data[DOMAIN][entry.entry_id]
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    assert mock_api.call_count == 1
+    # The fast path must call with just the stop_id (no explicit "time" argument).
+    args, kwargs = mock_api.call_args_list[0]
+    assert args == ("740098000",)
+    assert kwargs == {}
+
+
+@pytest.mark.asyncio
+async def test_coordinator_time_window_above_60_makes_multiple_calls_and_merges(hass: HomeAssistant) -> None:
+    """A time_window above 60 minutes must trigger one Timetable API call per 60-minute chunk,
+    merged into a single departures list sorted and trimmed to the configured window."""
+    from datetime import datetime
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"api_key": "k", "stop_id": "740098000", "name": "X", "sensor_type": "departure"},
+        options={"time_window": 150, "refresh_interval": 300},
+        unique_id="u_window_multi",
+        # Already at the latest version: time_window above 60 is a deliberate, post-migration
+        # user choice here, not a legacy value that the v2->v3 migration would cap to 60.
+        version=3,
+    )
+    entry.add_to_hass(hass)
+
+    now = datetime.now()
+    # ceil(150 / 60) == 3 chunks: [0,60), [60,120), [120,180) minutes from now.
+    responses_by_chunk = {
+        0: {"departures": [_departure_item(10, "A", now), _departure_item(50, "B", now)]},
+        1: {"departures": [_departure_item(70, "C", now), _departure_item(110, "D", now)]},
+        # 140 minutes is within the 150-minute window and must be kept; 170 must be trimmed.
+        2: {"departures": [_departure_item(140, "E", now), _departure_item(170, "F", now)]},
+    }
+
+    def _side_effect(stop_id, time_str=None):
+        # Key the response off the requested chunk's offset rather than call order,
+        # since the coordinator issues the per-chunk calls concurrently via asyncio.gather.
+        offset_minutes = round((datetime.strptime(time_str, "%Y-%m-%dT%H:%M") - now).total_seconds() / 60)
+        chunk_index = round(offset_minutes / 60)
+        return responses_by_chunk[chunk_index]
+
+    mock_api = AsyncMock(side_effect=_side_effect)
+    with patch("custom_components.trafiklab.api.TrafikLabApiClient.get_departures", mock_api):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        mock_api.reset_mock()
+        coordinator = hass.data[DOMAIN][entry.entry_id]
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    assert mock_api.call_count == 3
+    departures = coordinator.data.get("departures", [])
+    designations = [d["route"]["designation"] for d in departures]
+    # "F" (170 min) must be trimmed; the rest must be present, sorted chronologically.
+    assert designations == ["A", "B", "C", "D", "E"]
 
 
 # ---------------------------------------------------------------------------
