@@ -127,7 +127,7 @@ STEP_SENSOR_DATA_SCHEMA = vol.Schema(
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Trafiklab."""
 
-    VERSION = 2
+    VERSION = 3
 
 
     def __init__(self):

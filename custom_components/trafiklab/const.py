@@ -45,6 +45,13 @@ DEFAULT_TIME_WINDOW: Final = 60  # minutes
 DEFAULT_UPDATE_CONDITION: Final = ""  # empty means always update
 DEFAULT_MAX_RESULTS: Final = 10  # matches historical hardcoded limit
 
+# The Trafiklab Timetable (Realtime) API always returns departures/arrivals within a
+# fixed 60-minute window starting at the requested (or current) time. To support a
+# configured CONF_TIME_WINDOW greater than this, the coordinator issues one extra API
+# call per additional 60-minute chunk and merges the results. See
+# coordinator.TrafikLabCoordinator._fetch_realtime_window.
+REALTIME_WINDOW_MINUTES: Final = 60
+
 
 # API endpoints
 API_BASE_URL: Final = "https://realtime-api.trafiklab.se/v1"

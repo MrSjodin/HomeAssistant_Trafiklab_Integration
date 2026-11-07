@@ -9,8 +9,16 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform, EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant
+import homeassistant.helpers.issue_registry as ir
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_SENSOR_TYPE,
+    CONF_TIME_WINDOW,
+    REALTIME_WINDOW_MINUTES,
+    SENSOR_TYPE_ARRIVAL,
+    SENSOR_TYPE_DEPARTURE,
+)
 from .coordinator import TrafikLabCoordinator
 from .services_setup import async_setup_services, async_remove_services
 
@@ -80,17 +88,27 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool: 
     from data to options to avoid redundancy and allow UI edits without changing core data.
     Also normalises transport_modes: moves it from data to options if present, removes any
     values no longer in the valid set (e.g. the old "ship" key), and ensures the value is a list.
+
+    Version 2 -> 3: Cap any configured time_window greater than the Trafiklab Timetable
+    (Realtime) API's fixed 60-minute window down to 60 minutes, for Departure/Arrival
+    sensors only. Multi-request support for windows beyond 60 minutes now exists (see
+    coordinator.TrafikLabCoordinator._fetch_realtime_window), but it increases the
+    number of API calls made on every refresh, so it must be explicitly re-enabled by
+    the user rather than silently taking effect for existing entries. A repair issue
+    is raised for each affected entry so the change is visible.
     """
-    if entry.version == 1:
-        data = dict(entry.data)
-        options = dict(entry.options)
+    original_version = entry.version
+    data = dict(entry.data)
+    options = dict(entry.options)
+    changed = False
+
+    if original_version == 1:
         moved_keys = [
             "line_filter",
             "direction",
             "time_window",
             "refresh_interval",
         ]
-        changed = False
         for key in moved_keys:
             if key in data and key not in options:
                 options[key] = data.pop(key)
@@ -112,16 +130,45 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool: 
                 options["transport_modes"] = cleaned
                 changed = True
 
+    if original_version <= 2:
+        if data.get(CONF_SENSOR_TYPE) in (SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL):
+            current_window = options.get(CONF_TIME_WINDOW)
+            if isinstance(current_window, (int, float)) and current_window > REALTIME_WINDOW_MINUTES:
+                options[CONF_TIME_WINDOW] = REALTIME_WINDOW_MINUTES
+                changed = True
+                _LOGGER.warning(
+                    "Capped time_window from %s to %d minutes for Trafiklab entry %s (%s); "
+                    "multi-request support for longer windows now exists but must be "
+                    "re-enabled explicitly since it increases API usage",
+                    current_window,
+                    REALTIME_WINDOW_MINUTES,
+                    entry.entry_id,
+                    entry.title,
+                )
+                ir.async_create_issue(
+                    hass,
+                    DOMAIN,
+                    f"time_window_capped_{entry.entry_id}",
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="time_window_capped",
+                    translation_placeholders={
+                        "entry_title": entry.title,
+                        "old_value": str(int(current_window)),
+                    },
+                )
+
+    if original_version < 3:
         hass.config_entries.async_update_entry(
             entry,
             data=data,
             options=options,
-            version=2,
+            version=3,
         )
         if changed:
-            _LOGGER.debug("Migrated Trafiklab entry %s to version 2 (moved mutable keys to options)", entry.entry_id)
+            _LOGGER.debug("Migrated Trafiklab entry %s to version 3 (changes applied)", entry.entry_id)
         else:
-            _LOGGER.debug("Migrated Trafiklab entry %s to version 2", entry.entry_id)
+            _LOGGER.debug("Migrated Trafiklab entry %s to version 3", entry.entry_id)
         return True
 
     # For already-migrated entries: normalise transport_modes in options in-place

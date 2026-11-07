@@ -25,7 +25,8 @@
           "max_results": "Maximum Number of Results (departures/arrivals to return)"
         },
         "data_description": {
-          "transport_modes": "Leave empty to show all modes."
+          "transport_modes": "Leave empty to show all modes.",
+          "time_window": "The Timetable API returns a fixed 60-minute window per call. Windows above 60 minutes trigger one extra API call per additional 60 minutes on every refresh (e.g. 180 minutes = 3 calls)."
         }
       },
       "resrobot": {
@@ -65,7 +66,8 @@
           "max_results": "Maximum Number of Results (departures/arrivals to return)"
         },
         "data_description": {
-          "transport_modes": "Leave empty to show all modes."
+          "transport_modes": "Leave empty to show all modes.",
+          "time_window": "The Timetable API returns a fixed 60-minute window per call. Windows above 60 minutes trigger one extra API call per additional 60 minutes on every refresh (e.g. 180 minutes = 3 calls)."
         }
       },
       "reconfigure": {
@@ -162,7 +164,8 @@
           "max_results": "Maximum Number of Results (departures/arrivals to return)"
         },
         "data_description": {
-          "transport_modes": "Leave empty to show all modes."
+          "transport_modes": "Leave empty to show all modes.",
+          "time_window": "The Timetable API returns a fixed 60-minute window per call. Windows above 60 minutes trigger one extra API call per additional 60 minutes on every refresh (e.g. 180 minutes = 3 calls)."
         }
       },
       "init_resrobot": {
@@ -190,6 +193,10 @@
     "invalid_api_key": {
       "title": "Invalid Trafiklab API key for {entry_title}",
       "description": "The API key configured for **{entry_title}** is unauthorized. Please reconfigure the integration with a valid Trafiklab API key."
+    },
+    "time_window_capped": {
+      "title": "Time window capped to 60 minutes for {entry_title}",
+      "description": "**{entry_title}** was previously configured with a time window of {old_value} minutes. The Trafiklab Timetable API always returned only 60 minutes of data, so this setting had no real effect. It has now been reset to 60 minutes. The integration can perform multiple API calls to actually cover windows longer than 60 minutes — if you want that, reconfigure the sensor's time window in **Settings → Devices & Services → Trafiklab**, keeping in mind this increases the number of API calls made on every refresh (one extra call per additional 60 minutes)."
     }
   }
 }

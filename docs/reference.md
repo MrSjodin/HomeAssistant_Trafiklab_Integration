@@ -24,6 +24,23 @@ Full attribute schemas for every sensor type, and complete request/response exam
 - **Device Class**: Duration
 - **Attributes**: Detailed information about the next arrival
 
+### Time Window Beyond 60 Minutes
+
+The Trafiklab Timetable (Realtime) API always returns departures/arrivals within a fixed 60-minute window starting now (or at an explicit time). Configuring a **Time Window** greater than 60 minutes makes the integration issue one extra API call per additional 60-minute chunk needed to cover the window, then merges, de-duplicates, sorts and trims the combined results back down to exactly the configured window.
+
+This means the number of Timetable API calls made on every refresh is `ceil(time_window / 60)`. For example:
+
+| Time Window | API calls per refresh |
+|---|---|
+| 60 minutes (default) | 1 |
+| 90 minutes | 2 |
+| 180 minutes | 3 |
+| 1440 minutes (24 hours) | 24 |
+
+Take your API quota into account before configuring a long time window on a short refresh interval — see [Refresh interval considerations](setup.md#refresh-interval-considerations).
+
+> **Migration note**: Existing sensors configured with a time window greater than 60 minutes before this feature existed had that setting silently ignored (only 60 minutes of data was ever returned). When upgrading, any such sensor has its time window automatically reset to 60 minutes, and a repair issue is raised in **Settings → Repairs** so you're aware of the change. Reconfigure the sensor if you want a longer window now that it actually takes effect (and increases API usage as described above).
+
 ## Resrobot Travel Search Sensors
 - **State**: Minutes until the first upcoming leg within the configured time window
 - **Unit**: Minutes
