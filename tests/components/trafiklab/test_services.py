@@ -17,9 +17,10 @@ from custom_components.trafiklab.const import (
     SERVICE_UPDATE_NOW,
     SERVICE_TRAVEL_SEARCH,
     SERVICE_TRIP_DETAILS,
+    SERVICE_REALTIME_SEARCH,
     ATTR_CONFIG_ENTRY_ID,
 )
-from custom_components.trafiklab.services_setup import TRIP_DETAILS_SCHEMA
+from custom_components.trafiklab.services_setup import TRIP_DETAILS_SCHEMA, REALTIME_SEARCH_SCHEMA
 
 pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 
@@ -856,3 +857,228 @@ async def test_trip_details_service_returns_api_error(
 
     assert response["trip_id"] == _TRIP_DETAILS_ID
     assert "network failure" in response["error"]
+
+
+# ---------------------------------------------------------------------------
+# realtime_search ("Date and Time Realtime Timetable Search") service tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_realtime_search_basic_departure(
+    hass: Any, setup_integration: bool, mock_departures_response: dict
+) -> None:
+    """Happy path: basic departure search returns the sensor-style structured response."""
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        return_value=mock_departures_response,
+    ) as mock_api:
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_REALTIME_SEARCH,
+            {
+                "api_key": "k",
+                "stop_id": "740098000",
+                "datetime": "2026-11-07 21:00:00",
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_api.assert_called_once_with("740098000", "2026-11-07T21:00")
+    assert response["line"] == "52"
+    assert response["destination"] == "Central Station"
+    assert response["transport_mode"] == "BUS"
+    assert response["real_time"] is True
+    assert response["num_results"] == 1
+    assert response["upcoming"][0]["line"] == "52"
+    assert response["stop_id"] == "740098000"
+    assert response["sensor_type"] == "departure"
+    assert response["datetime"] == "2026-11-07T21:00:00"
+    assert response["time_window"] == 60
+    assert response["attribution"] == "Data from Trafiklab.se"
+    assert response["integration"] == DOMAIN
+    assert "error" not in response
+
+
+@pytest.mark.asyncio
+async def test_realtime_search_arrival_type_calls_get_arrivals(
+    hass: Any, setup_integration: bool, mock_arrivals_response: dict
+) -> None:
+    """sensor_type: arrival must call get_arrivals, not get_departures."""
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_arrivals",
+        return_value=mock_arrivals_response,
+    ) as mock_api:
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_REALTIME_SEARCH,
+            {
+                "api_key": "k",
+                "stop_id": "740098000",
+                "sensor_type": "arrival",
+                "datetime": "2026-11-07 21:00:00",
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_api.assert_called_once()
+    assert response["sensor_type"] == "arrival"
+    assert response["upcoming"][0]["line"] == "52"
+
+
+@pytest.mark.asyncio
+async def test_realtime_search_time_window_above_60_makes_multiple_calls(
+    hass: Any, setup_integration: bool
+) -> None:
+    """A time_window above 60 minutes must issue one call per 60-minute chunk from the
+    requested datetime (not "now"), merging and trimming results to the window."""
+    from datetime import datetime, timedelta
+
+    reference = datetime(2026, 11, 7, 21, 0, 0)
+
+    def _item(minutes_from_ref: int, designation: str) -> dict:
+        dt_str = (reference + timedelta(minutes=minutes_from_ref)).strftime("%Y-%m-%dT%H:%M:%S")
+        return {
+            "scheduled": dt_str,
+            "realtime": dt_str,
+            "route": {"designation": designation, "direction": "X", "transport_mode": "BUS"},
+            "trip": {"trip_id": f"trip_{designation}", "start_date": "2026-11-07"},
+        }
+
+    responses_by_chunk = {
+        0: {"departures": [_item(10, "A")]},
+        1: {"departures": [_item(70, "B")]},
+    }
+
+    def _side_effect(stop_id, time_str=None):
+        offset_minutes = round((datetime.strptime(time_str, "%Y-%m-%dT%H:%M") - reference).total_seconds() / 60)
+        chunk_index = round(offset_minutes / 60)
+        return responses_by_chunk[chunk_index]
+
+    mock_api = AsyncMock(side_effect=_side_effect)
+    with patch("custom_components.trafiklab.api.TrafikLabApiClient.get_departures", mock_api):
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_REALTIME_SEARCH,
+            {
+                "api_key": "k",
+                "stop_id": "740098000",
+                "datetime": "2026-11-07 21:00:00",
+                "time_window": 120,
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert mock_api.call_count == 2
+    assert response["time_window"] == 120
+    lines = [item["line"] for item in response["upcoming"]]
+    assert lines == ["A", "B"]
+
+
+@pytest.mark.asyncio
+async def test_realtime_search_requires_realtime_key(hass: Any, setup_integration: bool) -> None:
+    """Without an api_key, config_entry_id, or configured departure/arrival entry, return an error."""
+    response = await hass.services.async_call(
+        DOMAIN,
+        SERVICE_REALTIME_SEARCH,
+        {"stop_id": "740098000", "datetime": "2026-11-07 21:00:00"},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response["upcoming"] == []
+    assert "Realtime API key" in response["error"]
+
+
+@pytest.mark.asyncio
+async def test_realtime_search_line_filter_excludes_non_matching(
+    hass: Any, setup_integration: bool, mock_departures_response: dict
+) -> None:
+    """line_filter behaves identically to the sensor's own filtering."""
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        return_value=mock_departures_response,
+    ):
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_REALTIME_SEARCH,
+            {
+                "api_key": "k",
+                "stop_id": "740098000",
+                "datetime": "2026-11-07 21:00:00",
+                "line_filter": "99",
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert response["upcoming"] == []
+    assert response["num_results"] == 0
+    assert "error" not in response
+
+
+@pytest.mark.asyncio
+async def test_realtime_search_uses_departure_entry_key(hass: HomeAssistant) -> None:
+    """An active departure entry supplies the Realtime key when api_key is omitted."""
+    from tests.components.trafiklab.const import ENTRY_DATA_DEPARTURE, ENTRY_OPTIONS_DEFAULT
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=ENTRY_DATA_DEPARTURE,
+        options=ENTRY_OPTIONS_DEFAULT,
+        unique_id="test-realtime-search-key-resolution",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.trafiklab.coordinator.TrafikLabCoordinator._async_update_data",
+        return_value={},
+    ):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        return_value={"departures": []},
+    ) as mock_api:
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_REALTIME_SEARCH,
+            {"stop_id": "740098000", "datetime": "2026-11-07 21:00:00"},
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_api.assert_called_once()
+    assert "error" not in response
+
+
+@pytest.mark.asyncio
+async def test_realtime_search_returns_api_error(hass: Any, setup_integration: bool) -> None:
+    with patch(
+        "custom_components.trafiklab.api.TrafikLabApiClient.get_departures",
+        side_effect=RuntimeError("network failure"),
+    ):
+        response = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_REALTIME_SEARCH,
+            {"api_key": "k", "stop_id": "740098000", "datetime": "2026-11-07 21:00:00"},
+            blocking=True,
+            return_response=True,
+        )
+
+    assert response["upcoming"] == []
+    assert "network failure" in response["error"]
+
+
+def test_realtime_search_schema_rejects_out_of_range_time_window() -> None:
+    with pytest.raises(vol.Invalid):
+        REALTIME_SEARCH_SCHEMA(
+            {
+                "stop_id": "740098000",
+                "datetime": "2026-11-07 21:00:00",
+                "time_window": 1441,
+            }
+        )

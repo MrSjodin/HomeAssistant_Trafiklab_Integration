@@ -45,6 +45,7 @@ This integration is entirely community-developed and is not developed by, or in 
 - **Stop lookup service**: Find stop IDs by name using a Home Assistant service call
 - **Update now service**: Force an immediate data refresh for one or all sensors — by service call or via the entry's button
 - **Ad-hoc travel search service**: Query Resrobot for a journey on-demand without a permanent sensor, using stop IDs, coordinates, stop names, HA zones, or person/device_tracker entities
+- **Ad-hoc realtime timetable search service**: Search departures/arrivals for a specific date and time without a permanent sensor, returning the same structured response as a configured sensor (time windows beyond 60 minutes make extra API calls)
 - **Config flow**: Easy setup through the Home Assistant UI
 - **Multi-language support**: English and Swedish translations
 - **Nationwide coverage**: All public transport operators in Sweden covered by Trafiklab
@@ -102,6 +103,7 @@ Travel Search sensors additionally support a **Maximum Trip Duration** filter, a
 - **`trafiklab.update_now`** — force an immediate data refresh for one or all configured sensors
 - **`trafiklab.stop_lookup`** — find a stop's national Stop ID by name
 - **`trafiklab.trip_details`** — look up the full route/calls for one departure or arrival by `trip_id`
+- **`trafiklab.realtime_search`** — search departures/arrivals for a specific date and time without a permanent sensor; windows over 60 minutes make extra API calls
 
 📖 **Full reference:** request/response examples and parameters for every service — [docs/reference.md#services](docs/reference.md#services)
 

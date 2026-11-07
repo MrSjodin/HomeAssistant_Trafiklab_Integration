@@ -245,8 +245,9 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
             attrs["api_error_code"] = api_error.get("code")
             attrs["api_error_message"] = api_error.get("message")
 
+    @staticmethod
     def _build_upcoming_array(
-        self, items: list[dict], configured_direction: str
+        items: list[dict], configured_direction: str
     ) -> list[dict]:
         from datetime import datetime
 
@@ -536,19 +537,34 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
         if not raw_items:
             return []
         merged_cfg = {**self._entry.data, **self._entry.options}
-        line_filter = (merged_cfg.get(CONF_LINE_FILTER) or "").strip()
-        _direction_raw = (merged_cfg.get(CONF_DIRECTION) or "")
-        direction_tokens = [t.strip().lower() for t in _direction_raw.split(",") if t.strip()]
+        return self._filter_realtime_items(
+            raw_items,
+            merged_cfg.get(CONF_LINE_FILTER) or "",
+            merged_cfg.get(CONF_DIRECTION) or "",
+            merged_cfg.get(CONF_TRANSPORT_MODES) or [],
+        )
+
+    @staticmethod
+    def _filter_realtime_items(
+        raw_items: list[dict],
+        line_filter: str = "",
+        direction: str = "",
+        transport_modes: list[str] | None = None,
+    ) -> list[dict]:
+        """Filter departures/arrivals by line, direction substring, and transport mode.
+
+        Mirrors the filtering a configured Departure/Arrival sensor applies via its
+        entry options, so ad-hoc callers (e.g. the ``realtime_search`` service) get
+        identical results.
+        """
+        line_filter = (line_filter or "").strip()
+        direction_tokens = [t.strip().lower() for t in (direction or "").split(",") if t.strip()]
         line_set = (
             {ln.strip() for ln in line_filter.split(",") if ln.strip()}
             if line_filter
             else None
         )
-        transport_mode_filter = {
-            m.upper()
-            for m in (merged_cfg.get(CONF_TRANSPORT_MODES) or [])
-            if m
-        }
+        transport_mode_filter = {m.upper() for m in (transport_modes or []) if m}
 
         def match_line(item: dict) -> bool:
             if not line_set:
@@ -581,3 +597,5 @@ class TrafikLabSensor(CoordinatorEntity[TrafikLabCoordinator], SensorEntity):
 
 
 normalize_resrobot_trips = TrafikLabSensor._normalize_resrobot_trips
+build_upcoming_array = TrafikLabSensor._build_upcoming_array
+filter_realtime_items = TrafikLabSensor._filter_realtime_items

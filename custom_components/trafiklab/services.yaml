@@ -190,3 +190,97 @@ trip_details:
       example: "2026-09-26"
       selector:
         date:
+
+realtime_search:
+  name: Date and Time Realtime Timetable Search
+  description: >
+    Issue a one-off Timetable (Realtime) departures/arrivals search for a specific date and time, and get back the
+    same structured response (line, destination, upcoming array, etc.) a configured Departure/Arrival sensor
+    exposes as attributes. Searching more than the default 60-minute time window makes one extra Timetable API
+    call per additional 60-minute chunk needed to cover the window (e.g. a 180-minute window makes 3 calls).
+  fields:
+    api_key:
+      name: API Key
+      description: Your Trafiklab Realtime API key. Omit to use the key from a configured departure or arrival sensor.
+      required: false
+      selector:
+        text:
+          type: password
+    config_entry_id:
+      name: Config entry ID
+      description: Specific departure or arrival entry to take the Realtime API key from. Ignored when api_key is provided.
+      required: false
+      selector:
+        config_entry:
+          integration: trafiklab
+    stop_id:
+      name: Stop ID
+      description: Area/stop ID to search (use the Stop Lookup service to find it).
+      required: true
+      example: "740098000"
+      selector:
+        text:
+    sensor_type:
+      name: Search type
+      description: Whether to search departures or arrivals.
+      required: false
+      default: departure
+      example: "departure"
+      selector:
+        select:
+          options:
+            - departure
+            - arrival
+    datetime:
+      name: Date and time
+      description: The date and time to start searching from.
+      required: true
+      example: "2026-11-07 21:00:00"
+      selector:
+        datetime:
+    time_window:
+      name: Time window
+      description: >
+        Minutes ahead of the given date/time to search. Values above 60 make one extra Timetable API call per
+        additional 60-minute chunk needed to cover the window.
+      required: false
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: min
+    line_filter:
+      name: Line filter
+      description: Comma-separated list of line designations to include (e.g. "7,42X"). Leave empty for all lines.
+      required: false
+      selector:
+        text:
+    direction:
+      name: Direction filter
+      description: Comma-separated substrings to match against the destination/headsign. Leave empty for all directions.
+      required: false
+      selector:
+        text:
+    transport_modes:
+      name: Transport modes
+      description: Restrict to specific transport modes (empty means all modes)
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - bus
+            - train
+            - metro
+            - tram
+            - boat
+    max_results:
+      name: Maximum number of results
+      description: Maximum number of items to include in the upcoming array.
+      required: false
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 100
