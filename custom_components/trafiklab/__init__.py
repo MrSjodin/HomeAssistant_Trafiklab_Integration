@@ -22,7 +22,7 @@ from .const import (
 from .coordinator import TrafikLabCoordinator
 from .services_setup import async_setup_services, async_remove_services
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BUTTON]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BUTTON, Platform.CALENDAR]
 
 _LOGGER = logging.getLogger(__name__)
 

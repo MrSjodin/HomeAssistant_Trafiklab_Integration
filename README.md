@@ -44,6 +44,7 @@ This integration is entirely community-developed and is not developed by, or in 
 - **Flexible sensor configuration**: Create separate sensors for departures and arrivals
 - **Stop lookup service**: Find stop IDs by name using a Home Assistant service call
 - **Update now service**: Force an immediate data refresh for one or all sensors — by service call or via the entry's button
+- **Calendar entity**: Each entry also gets a calendar with its departures, arrivals or trips as events, for easy display with a calendar card. It is disabled by default; enable it in the entity settings. It only covers the configured time window ahead, and uses no extra API calls
 - **Ad-hoc travel search service**: Query Resrobot for a journey on-demand without a permanent sensor, using stop IDs, coordinates, stop names, HA zones, or person/device_tracker entities
 - **Ad-hoc realtime timetable search service**: Search departures/arrivals for a specific date and time without a permanent sensor, returning the same structured response as a configured sensor (time windows beyond 60 minutes make extra API calls)
 - **Config flow**: Easy setup through the Home Assistant UI

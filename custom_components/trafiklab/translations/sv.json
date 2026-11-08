@@ -120,6 +120,17 @@
       "update_now": {
         "name": "Uppdatera nu"
       }
+    },
+    "calendar": {
+      "departures": {
+        "name": "Avgångar"
+      },
+      "arrivals": {
+        "name": "Ankomster"
+      },
+      "trips": {
+        "name": "Resor"
+      }
     }
   },
   "selector": {
