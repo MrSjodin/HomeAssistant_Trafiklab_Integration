@@ -122,6 +122,17 @@
       "update_now": {
         "name": "Update now"
       }
+    },
+    "calendar": {
+      "departures": {
+        "name": "Departures"
+      },
+      "arrivals": {
+        "name": "Arrivals"
+      },
+      "trips": {
+        "name": "Trips"
+      }
     }
   },
   "selector": {
