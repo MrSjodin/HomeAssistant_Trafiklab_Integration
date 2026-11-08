@@ -15,6 +15,7 @@
         "title": "Configure Stop Sensor",
         "description": "Choose filters and update settings for this stop sensor.",
         "data": {
+          "api_key": "API Key",
           "stop_id": "Stop ID",
           "line_filter": "Line Filter (comma-separated; empty for all lines)",
           "direction": "Destination Filter (substring; empty for all destinations)",
@@ -33,6 +34,7 @@
         "title": "Resrobot Travel Search",
         "description": "Configure origin and destination for Resrobot trips.",
         "data": {
+          "api_key": "API Key",
           "origin_type": "Origin Type",
           "origin": "Origin (Stop ID or coordinates)",
           "destination_type": "Destination Type",
@@ -93,12 +95,12 @@
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to Trafiklab API",
-      "invalid_api_key": "Invalid API key",
-      "invalid_stop_id": "Invalid stop ID",
+      "cannot_connect": "Failed to connect to Trafiklab API: {error_detail}",
+      "invalid_api_key": "Invalid API key: {error_detail}",
+      "invalid_stop_id": "Invalid stop ID: {error_detail}",
       "invalid_coordinates": "Invalid coordinates format (lat,lon)",
-      "quota_exceeded": "API quota exceeded — wait before trying again",
-      "unknown": "Unexpected error occurred"
+      "quota_exceeded": "API quota exceeded — wait before trying again ({error_detail})",
+      "unknown": "Unexpected error occurred: {error_detail}"
     },
     "abort": {
       "already_configured": "This sensor configuration is already configured"

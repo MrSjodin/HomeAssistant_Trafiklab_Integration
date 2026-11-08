@@ -321,7 +321,7 @@ async def test_flow_quota_exceeded_shows_correct_error(hass: HomeAssistant, enab
 
 @pytest.mark.asyncio
 async def test_resrobot_step_auth_error_shows_invalid_api_key(hass: HomeAssistant, enable_custom_integrations: None) -> None:
-    """A TrafikLabAuthError from the Resrobot probe must show invalid_api_key on errors['base']."""
+    """A TrafikLabAuthError from the Resrobot probe must show invalid_api_key on the api_key field."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -349,5 +349,45 @@ async def test_resrobot_step_auth_error_shows_invalid_api_key(hass: HomeAssistan
         )
 
     assert result_err["type"] == "form"
-    assert result_err["errors"].get("base") == "invalid_api_key"
+    assert result_err["errors"].get("api_key") == "invalid_api_key"
 
+
+
+@pytest.mark.asyncio
+async def test_departure_step_invalid_key_keeps_input_and_shows_detail(hass: HomeAssistant, enable_custom_integrations: None) -> None:
+    """A rejected key keeps the entered values, shows the API message and lets the key be corrected."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"sensor_type": "departure", "api_key": "bad-key", "name": "My Stop"},
+    )
+    assert result["step_id"] == "departure_arrival"
+
+    with patch(
+        "custom_components.trafiklab.config_flow.validate_input",
+        side_effect=InvalidApiKey("Key 'bad-key' does not exist."),
+    ):
+        result_err = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"stop_id": "740098000", "line_filter": "1"}
+        )
+
+    assert result_err["type"] == "form"
+    assert result_err["errors"] == {"api_key": "invalid_api_key"}
+    assert result_err["description_placeholders"]["error_detail"] == "Key 'bad-key' does not exist."
+    suggested = {
+        str(key): key.description.get("suggested_value")
+        for key in result_err["data_schema"].schema
+        if key.description
+    }
+    assert suggested["api_key"] == "bad-key"
+    assert suggested["stop_id"] == "740098000"
+    assert suggested["line_filter"] == "1"
+
+    # Correcting the key in the same step completes the flow
+    with patch("custom_components.trafiklab.config_flow.validate_input", return_value={"title": ""}), \
+         patch("custom_components.trafiklab.async_setup_entry", return_value=True):
+        result_ok = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"api_key": " good-key ", "stop_id": "740098000"}
+        )
+    assert result_ok["type"] == "create_entry"
+    assert result_ok["data"]["api_key"] == "good-key"

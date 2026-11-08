@@ -15,6 +15,7 @@
         "title": "Konfigurera hållplatssensor",
         "description": "Välj filter och uppdateringsinställningar för denna sensor.",
         "data": {
+          "api_key": "API-nyckel",
           "stop_id": "Hållplats-ID",
           "line_filter": "Linjefilter (kommaseparerade; tomt för alla linjer)",
           "direction": "Destinationsfilter (textdel; tomt för alla destinationer)",
@@ -33,6 +34,7 @@
         "title": "Resrobot Resesökning",
         "description": "Konfigurera ursprung och destination för Resrobot-resor.",
         "data": {
+          "api_key": "API-nyckel",
           "origin_type": "Ursprungstyp",
           "origin": "Ursprung (Hållplats-ID eller koordinater)",
           "destination_type": "Destinationstyp",
@@ -93,12 +95,12 @@
       }
     },
     "error": {
-      "cannot_connect": "Kunde inte ansluta till Trafiklab API",
-      "invalid_api_key": "Ogiltig API-nyckel",
-      "invalid_stop_id": "Ogiltigt hållplats-ID",
+      "cannot_connect": "Kunde inte ansluta till Trafiklab API: {error_detail}",
+      "invalid_api_key": "Ogiltig API-nyckel: {error_detail}",
+      "invalid_stop_id": "Ogiltigt hållplats-ID: {error_detail}",
       "invalid_coordinates": "Ogiltigt koordinatformat (lat,lon)",
-      "quota_exceeded": "API-kvot överskriden — vänta innan du försöker igen",
-      "unknown": "Oväntat fel uppstod"
+      "quota_exceeded": "API-kvot överskriden — vänta innan du försöker igen ({error_detail})",
+      "unknown": "Oväntat fel uppstod: {error_detail}"
     },
     "abort": {
       "already_configured": "Denna sensorkonfiguration är redan konfigurerad"

@@ -136,6 +136,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._stop_id = None
         self._name = None
         self._sensor_type = None
+        self._api_key_rejected = False
 
 
     async def async_step_user(
@@ -143,11 +144,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the initial step: sensor type and API key."""
         errors: dict[str, str] = {}
+        error_detail = ""
 
         if user_input is not None:
                 # Legacy path: allow initial form to accept api_key + stop_id (+ name)
                 if CONF_STOP_ID in user_input and CONF_API_KEY in user_input and CONF_SENSOR_TYPE not in user_input:
-                    self._api_key = user_input[CONF_API_KEY]
+                    self._api_key = user_input[CONF_API_KEY].strip()
                     self._stop_id = user_input[CONF_STOP_ID]
                     self._name = ""
                     try:
@@ -155,24 +157,31 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_API_KEY: self._api_key,
                             CONF_STOP_ID: self._stop_id,
                         })
-                    except InvalidApiKey:
+                    except InvalidApiKey as err:
                         errors["api_key"] = "invalid_api_key"
-                    except InvalidStopId:
-                        errors["stop_id"] = "invalid_stop_id"
-                    except QuotaExceeded:
+                        error_detail = _error_detail(err)
+                    except InvalidStopId as err:
+                        # The initial form has no stop field, report on the form itself
+                        errors["base"] = "invalid_stop_id"
+                        error_detail = _error_detail(err)
+                    except QuotaExceeded as err:
                         errors["base"] = "quota_exceeded"
-                    except CannotConnect:
+                        error_detail = _error_detail(err)
+                    except CannotConnect as err:
                         errors["base"] = "cannot_connect"
+                        error_detail = _error_detail(err)
                     except Exception as err:  # pragma: no cover
                         _LOGGER.exception("Unexpected exception during validation: %s", err)
                         errors["base"] = "unknown"
+                        error_detail = _error_detail(err)
                     else:
                         # Proceed to sensor configuration step
                         return await self.async_step_sensor()
                 else:
                     # New path: choose sensor type first
                     self._sensor_type = user_input[CONF_SENSOR_TYPE]
-                    self._api_key = user_input[CONF_API_KEY]
+                    self._api_key = user_input[CONF_API_KEY].strip()
+                    self._api_key_rejected = False
                     self._name = user_input.get(CONF_NAME, "")
                     # Next step depends on sensor type
                     if self._sensor_type in [SENSOR_TYPE_DEPARTURE, SENSOR_TYPE_ARRIVAL]:
@@ -191,8 +200,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=dynamic_schema,
+            data_schema=self.add_suggested_values_to_schema(dynamic_schema, user_input or {}),
             errors=errors,
+            description_placeholders={"error_detail": error_detail},
         )
 
     async def async_step_departure_arrival(
@@ -200,26 +210,36 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the step for Departure/Arrival sensor config."""
         errors: dict[str, str] = {}
+        error_detail = ""
 
         if user_input is not None:
             self._stop_id = user_input[CONF_STOP_ID]
+            # The API key field is only shown after the key was rejected
+            if user_input.get(CONF_API_KEY):
+                self._api_key = user_input[CONF_API_KEY].strip()
             # Validate input as before
             try:
                 await validate_input(self.hass, {
                     CONF_API_KEY: self._api_key,
                     CONF_STOP_ID: self._stop_id,
                 })
-            except InvalidApiKey:
+            except InvalidApiKey as err:
                 errors["api_key"] = "invalid_api_key"
-            except InvalidStopId:
+                self._api_key_rejected = True
+                error_detail = _error_detail(err)
+            except InvalidStopId as err:
                 errors["stop_id"] = "invalid_stop_id"
-            except QuotaExceeded:
+                error_detail = _error_detail(err)
+            except QuotaExceeded as err:
                 errors["base"] = "quota_exceeded"
-            except CannotConnect:
+                error_detail = _error_detail(err)
+            except CannotConnect as err:
                 errors["base"] = "cannot_connect"
+                error_detail = _error_detail(err)
             except Exception as err:
                 _LOGGER.exception("Unexpected exception during validation: %s", err)
                 errors["base"] = "unknown"
+                error_detail = _error_detail(err)
             else:
                 # Combine config data
                 base_data = {
@@ -244,10 +264,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 title = f"{self._name} {sensor_type_name}".strip()
                 return self.async_create_entry(title=title, data=base_data, options=options_data)
 
-        # Show form for Departure/Arrival sensor config
-        return self.async_show_form(
-            step_id="departure_arrival",
-            data_schema=vol.Schema({
+        # Show form for Departure/Arrival sensor config. When the API key has
+        # been rejected, include it so the error is visible and can be fixed.
+        fields: dict[Any, Any] = {}
+        if self._api_key_rejected:
+            fields[vol.Optional(CONF_API_KEY)] = str
+        schema = vol.Schema({
+                **fields,
                 vol.Required(CONF_STOP_ID): str,
                 vol.Optional(CONF_LINE_FILTER, default=""): str,
                 vol.Optional(CONF_DIRECTION, default=""): str,
@@ -262,8 +285,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_MAX_RESULTS, default=DEFAULT_MAX_RESULTS): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=100)
                 ),
-            }),
+            })
+        # Keep what the user entered when the form is shown again after an error
+        suggested = {**(user_input or {})}
+        if self._api_key_rejected:
+            suggested[CONF_API_KEY] = self._api_key or ""
+        return self.async_show_form(
+            step_id="departure_arrival",
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
             errors=errors,
+            description_placeholders={"error_detail": error_detail},
         )
 
     async def async_step_resrobot(
@@ -271,10 +302,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the step for Resrobot Travel Search sensor config."""
         errors: dict[str, str] = {}
+        error_detail = ""
+
+        if user_input is not None and user_input.get(CONF_API_KEY):
+            # The API key field is only shown after the key was rejected
+            self._api_key = user_input[CONF_API_KEY].strip()
 
         # Define all required fields for Resrobot, including update frequency and time window
         # Keep options simple; labels are translated via step strings
-        resrobot_schema = vol.Schema({
+        resrobot_schema_fields = {
             vol.Required(CONF_ORIGIN_TYPE, default="stop_id"): _LOCATION_TYPE_SELECTOR,
             vol.Required(CONF_ORIGIN, default=""): str,
             vol.Required(CONF_DESTINATION_TYPE, default="stop_id"): _LOCATION_TYPE_SELECTOR,
@@ -290,7 +326,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_MAX_RESULTS, default=DEFAULT_MAX_RESULTS): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=100)
             ),
-        })
+        }
 
         if user_input is not None:
             # Validate origin/destination types and values
@@ -328,14 +364,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 try:
                     await _probe_client.search_resrobot_stops("Stockholm", self._api_key)
-                except TrafikLabAuthError:
-                    errors["base"] = "invalid_api_key"
-                except TrafikLabQuotaError:
+                except TrafikLabAuthError as err:
+                    errors["api_key"] = "invalid_api_key"
+                    self._api_key_rejected = True
+                    error_detail = _error_detail(err)
+                except TrafikLabQuotaError as err:
                     errors["base"] = "quota_exceeded"
-                except TrafikLabApiError:
+                    error_detail = _error_detail(err)
+                except TrafikLabApiError as err:
                     errors["base"] = "cannot_connect"
-                except Exception:  # pragma: no cover
+                    error_detail = _error_detail(err)
+                except Exception as err:  # pragma: no cover
                     errors["base"] = "cannot_connect"
+                    error_detail = _error_detail(err)
                 finally:
                     await _probe_client.close()
 
@@ -368,11 +409,24 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 title = f"{self._name} Resrobot Travel Search".strip()
                 return self.async_create_entry(title=title, data=base_data, options=options_data)
 
-        # Show form for Resrobot Travel Search config
+        # Show form for Resrobot Travel Search config. When the API key has
+        # been rejected, include it so the error is visible and can be fixed.
+        if self._api_key_rejected:
+            resrobot_schema_fields = {
+                vol.Optional(CONF_API_KEY): str,
+                **resrobot_schema_fields,
+            }
+        # Keep what the user entered when the form is shown again after an error
+        suggested = {**(user_input or {})}
+        if self._api_key_rejected:
+            suggested[CONF_API_KEY] = self._api_key or ""
         return self.async_show_form(
             step_id="resrobot",
-            data_schema=resrobot_schema,
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(resrobot_schema_fields), suggested
+            ),
             errors=errors,
+            description_placeholders={"error_detail": error_detail},
         )
 
     async def async_step_sensor(
@@ -445,24 +499,31 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Reconfigure API key and stop ID for a departure/arrival sensor."""
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
+        error_detail = ""
 
         if user_input is not None:
+            user_input = {**user_input, CONF_API_KEY: user_input[CONF_API_KEY].strip()}
             try:
                 await validate_input(self.hass, {
                     CONF_API_KEY: user_input[CONF_API_KEY],
                     CONF_STOP_ID: user_input[CONF_STOP_ID],
                 })
-            except InvalidApiKey:
+            except InvalidApiKey as err:
                 errors["api_key"] = "invalid_api_key"
-            except InvalidStopId:
+                error_detail = _error_detail(err)
+            except InvalidStopId as err:
                 errors["stop_id"] = "invalid_stop_id"
-            except QuotaExceeded:
+                error_detail = _error_detail(err)
+            except QuotaExceeded as err:
                 errors["base"] = "quota_exceeded"
-            except CannotConnect:
+                error_detail = _error_detail(err)
+            except CannotConnect as err:
                 errors["base"] = "cannot_connect"
+                error_detail = _error_detail(err)
             except Exception as err:
                 _LOGGER.exception("Unexpected exception during reconfigure validation: %s", err)
                 errors["base"] = "unknown"
+                error_detail = _error_detail(err)
             else:
                 return self.async_update_reload_and_abort(
                     entry,
@@ -475,8 +536,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         })
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=schema,
+            data_schema=self.add_suggested_values_to_schema(schema, user_input or {}),
             errors=errors,
+            description_placeholders={"error_detail": error_detail},
         )
 
     async def async_step_reconfigure_resrobot(
@@ -485,6 +547,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Reconfigure API key and trip endpoints for a Resrobot sensor."""
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
+        error_detail = ""
 
         def valid_coords(val: str) -> bool:
             try:
@@ -496,6 +559,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return False
 
         if user_input is not None:
+            user_input = {**user_input, CONF_API_KEY: user_input[CONF_API_KEY].strip()}
             if user_input.get(CONF_ORIGIN_TYPE) == "coordinates" and not valid_coords(user_input.get(CONF_ORIGIN, "")):
                 errors[CONF_ORIGIN] = "invalid_coordinates"
             if user_input.get(CONF_DESTINATION_TYPE) == "coordinates" and not valid_coords(user_input.get(CONF_DESTINATION, "")):
@@ -509,14 +573,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 try:
                     await _probe_client.search_resrobot_stops("Stockholm", user_input[CONF_API_KEY])
-                except TrafikLabAuthError:
-                    errors["base"] = "invalid_api_key"
-                except TrafikLabQuotaError:
+                except TrafikLabAuthError as err:
+                    errors["api_key"] = "invalid_api_key"
+                    error_detail = _error_detail(err)
+                except TrafikLabQuotaError as err:
                     errors["base"] = "quota_exceeded"
-                except TrafikLabApiError:
+                    error_detail = _error_detail(err)
+                except TrafikLabApiError as err:
                     errors["base"] = "cannot_connect"
-                except Exception:  # pragma: no cover
+                    error_detail = _error_detail(err)
+                except Exception as err:  # pragma: no cover
                     errors["base"] = "cannot_connect"
+                    error_detail = _error_detail(err)
                 finally:
                     await _probe_client.close()
 
@@ -535,8 +603,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         })
         return self.async_show_form(
             step_id="reconfigure_resrobot",
-            data_schema=schema,
+            data_schema=self.add_suggested_values_to_schema(schema, user_input or {}),
             errors=errors,
+            description_placeholders={"error_detail": error_detail},
         )
 
     @staticmethod
@@ -635,6 +704,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 # ---------------------------------------------------------------------------
 # Validation helpers & custom exceptions (expected by tests)
 # ---------------------------------------------------------------------------
+def _error_detail(err: BaseException) -> str:
+    """Return the error message from the API, for the form's error text."""
+    detail = str(err).strip()
+    if not detail and err.__cause__ is not None:
+        detail = str(err.__cause__).strip()
+    return detail or type(err).__name__
+
+
 class CannotConnect(HomeAssistantError):
     """Error to indicate we cannot connect."""
 
@@ -666,15 +743,15 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         # Attempt a lightweight departures fetch to validate both key & stop.
         await client.get_departures(stop_id)
     except TrafikLabAuthError as err:
-        raise InvalidApiKey from err
+        raise InvalidApiKey(str(err)) from err
     except TrafikLabNotFoundError as err:
-        raise InvalidStopId from err
+        raise InvalidStopId(str(err)) from err
     except TrafikLabQuotaError as err:
-        raise QuotaExceeded from err
+        raise QuotaExceeded(str(err)) from err
     except TrafikLabApiError as err:
-        raise CannotConnect from err
+        raise CannotConnect(str(err)) from err
     except Exception as err:  # pragma: no cover - network/aio edge case
-        raise CannotConnect from err
+        raise CannotConnect(str(err)) from err
     finally:
         await client.close()
 
