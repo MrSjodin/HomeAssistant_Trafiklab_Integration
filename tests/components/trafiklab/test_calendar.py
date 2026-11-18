@@ -115,7 +115,10 @@ async def test_calendar_departure_events(hass: HomeAssistant) -> None:
     start = datetime.fromisoformat(first["start"])
     end = datetime.fromisoformat(first["end"])
     assert end - start == timedelta(minutes=1)
-    assert start == _local(5).replace(tzinfo=_STOCKHOLM)
+    expected_start = datetime.fromisoformat(
+        payload["departures"][1]["realtime"]
+    ).replace(tzinfo=_STOCKHOLM)
+    assert start == expected_start
 
     state = hass.states.get(entity_id)
     assert state.attributes["message"] == "1 Huskvarna"
